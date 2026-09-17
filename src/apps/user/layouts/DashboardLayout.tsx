@@ -43,7 +43,7 @@ export default function DashboardLayout({ role, navItems, title, subtitle, userI
         <div className={`p-4 border-b border-white/10 flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
           {!collapsed && (
             <div>
-              <p className="font-bold font-display text-white text-sm leading-none">PashuRakshak</p>
+              <p className="font-bold font-display text-white text-sm leading-none">PawVita</p>
               <p className="text-white/50 text-xs mt-0.5">{subtitle}</p>
             </div>
           )}

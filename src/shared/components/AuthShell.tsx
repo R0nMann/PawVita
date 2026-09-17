@@ -43,7 +43,7 @@ export default function AuthShell({
             🐄
           </span>
           <span>
-            PashuRakshak
+            PawVita
             <span className="block text-xs font-normal text-white/60 -mt-0.5">
               Livestock Disease Surveillance
             </span>
@@ -100,7 +100,7 @@ export default function AuthShell({
             >
               🐄
             </span>
-            PashuRakshak
+            PawVita
           </Link>
 
           <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 font-display">

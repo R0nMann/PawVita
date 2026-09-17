@@ -23,7 +23,7 @@ export function utilityPage(Page: ComponentType, portal: PortalId) {
               <span className="text-2xl" aria-hidden="true">
                 🐄
               </span>
-              <span className="font-display font-bold text-[#1B4332]">PashuRakshak</span>
+              <span className="font-display font-bold text-[#1B4332]">PawVita</span>
             </Link>
             <span
               className="text-xs font-semibold px-2.5 py-1 rounded-full"

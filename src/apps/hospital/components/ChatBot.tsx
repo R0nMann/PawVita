@@ -4,7 +4,7 @@ import { CHATBOT_RESPONSES } from "../data/mockData";
 export default function ChatBot() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { from: "bot", text: "Hello! I'm PashuRakshak AI Assistant. How can I help you today?" },
+    { from: "bot", text: "Hello! I'm PawVita AI Assistant. How can I help you today?" },
   ]);
   const [input, setInput] = useState("");
 
@@ -28,7 +28,7 @@ export default function ChatBot() {
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-base">🐄</div>
               <div>
-                <p className="text-white font-semibold font-display text-sm">PashuRakshak AI</p>
+                <p className="text-white font-semibold font-display text-sm">PawVita AI</p>
                 <p className="text-green-200 text-xs">Always here to help</p>
               </div>
             </div>

@@ -150,7 +150,7 @@ export default function HowItWorks() {
             Join the network
           </h2>
           <p className="text-white/70 text-lg mt-4 leading-relaxed">
-            Over 4,800 veterinarians and officials already work inside PashuRakshak alongside a
+            Over 4,800 veterinarians and officials already work inside PawVita alongside a
             quarter of a million registered farmers.
           </p>
           <div className="flex flex-wrap justify-center gap-3 mt-8">

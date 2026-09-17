@@ -27,7 +27,7 @@ export default function FarmerLayout() {
           <div className="flex items-center gap-2">
             <span className="text-xl">🐄</span>
             <div>
-              <p className="font-bold font-display text-sm leading-none">PashuRakshak</p>
+              <p className="font-bold font-display text-sm leading-none">PawVita</p>
               <p className="text-white/60 text-xs leading-none">Farmer Portal</p>
             </div>
           </div>

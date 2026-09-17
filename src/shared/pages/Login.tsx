@@ -65,7 +65,7 @@ export default function Login() {
 
     if (config.authMethod === "otp") {
       if (!/^\d{10}$/.test(mobile)) {
-        setError("Enter the 10-digit mobile number registered with PashuRakshak.");
+        setError("Enter the 10-digit mobile number registered with PawVita.");
         return;
       }
       setStep("otp");
@@ -116,7 +116,7 @@ export default function Login() {
       }
       subtitle={
         step === "portal"
-          ? "PashuRakshak brings livestock owners and veterinary institutions onto one surveillance network. Pick the side you work from."
+          ? "PawVita brings livestock owners and veterinary institutions onto one surveillance network. Pick the side you work from."
           : config.tagline
       }
     >
@@ -219,7 +219,7 @@ export default function Login() {
                       autoComplete="username"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="vh-pune-01 or name@pashurakshak.in"
+                      placeholder="vh-pune-01 or name@pawvita.in"
                       aria-invalid={error ? true : undefined}
                       className="w-full min-h-[48px] border border-gray-200 rounded-xl px-4 text-base bg-[#FAF9F6] focus-ring"
                     />
@@ -306,7 +306,7 @@ export default function Login() {
           )}
 
           <p className="text-center text-sm text-gray-500 mt-6 pt-6 border-t border-gray-100">
-            New to PashuRakshak?{" "}
+            New to PawVita?{" "}
             <Link
               to={"/register?portal=" + portal}
               className="text-[#1B4332] font-semibold underline underline-offset-2 rounded focus-ring"

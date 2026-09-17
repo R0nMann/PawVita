@@ -3,7 +3,7 @@ import { useState } from 'react';
 const faqs = [
   { q: 'How do I report a sick animal?', a: 'Go to the Farmer Portal and click "Report Symptom". Select your animal, choose symptoms from the illustrated grid, and submit. A vet will be assigned within 2 hours.' },
   { q: 'What is the FMD vaccine and when should I give it?', a: 'Foot-and-Mouth Disease (FMD) vaccine should be given every 6 months to all cattle and buffalo. Contact your local vet or use the app to schedule a visit.' },
-  { q: 'Can I use the app without internet?', a: 'Yes! PashuRakshak works offline. Reports are saved locally and automatically synced when you reconnect.' },
+  { q: 'Can I use the app without internet?', a: 'Yes! PawVita works offline. Reports are saved locally and automatically synced when you reconnect.' },
   { q: 'How do I update my animal\'s information?', a: 'Go to "My Animals" and tap on the animal card. You can edit all details including breed, weight, and vaccination history.' },
   { q: 'Who can see my reports?', a: 'Your reports are shared with the assigned veterinary officer and district health officials only. Your personal data is protected under the Data Protection Act.' },
 ];
@@ -33,7 +33,7 @@ export default function HelpSupport() {
         {[
           { icon: '📹', title: 'Video Tutorials', desc: 'Learn to use the app' },
           { icon: '💬', title: 'WhatsApp Help', desc: '+91 98765 XXXXX' },
-          { icon: '📧', title: 'Email Support', desc: 'help@pashurakshak.gov.in' },
+          { icon: '📧', title: 'Email Support', desc: 'help@pawvita.gov.in' },
           { icon: '🏢', title: 'Nearest Centre', desc: 'Find veterinary centre' },
         ].map(c => (
           <div key={c.title} className="bg-white rounded-2xl p-4 shadow-card border border-gray-100 text-center hover:shadow-card-hover transition-all cursor-pointer">

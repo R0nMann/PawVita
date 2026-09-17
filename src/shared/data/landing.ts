@@ -98,7 +98,7 @@ export const TESTIMONIALS = [
     role: "Dairy Farmer",
     location: "Anand, Gujarat",
     quote:
-      "PashuRakshak saved six of my cows. I can call a veterinarian from my own phone now, without travelling to the block office.",
+      "PawVita saved six of my cows. I can call a veterinarian from my own phone now, without travelling to the block office.",
     avatar: "R",
   },
   {

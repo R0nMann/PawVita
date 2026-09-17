@@ -1,4 +1,4 @@
-# PashuRakshak
+# PawVita
 
 Unified livestock disease surveillance platform — the merge of the two
 previously separate applications in this repository, joined behind one
@@ -50,7 +50,7 @@ Each portal has its own roles; the role selected during sign-in decides which
 dashboard opens. A **Demo access** panel at the bottom of the sign-in page drops
 straight into any of the ten dashboards without credentials.
 
-The session is held in `localStorage` under `pashurakshak.session`. Visiting a
+The session is held in `localStorage` under `pawvita.session`. Visiting a
 portal route without a session redirects to `/login` with a `next` parameter, so
 sign-in returns to the page originally requested. Visiting the *other* portal's
 routes shows an explanation with a way to switch rather than a silent bounce.

@@ -101,7 +101,7 @@ export default function Register() {
   }
 
   const titles = [
-    "Create your PashuRakshak account",
+    "Create your PawVita account",
     "Tell us what you do",
     isOtpPortal ? "Your details" : "Your institution",
   ];
@@ -290,7 +290,7 @@ export default function Register() {
                 autoComplete="email"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                placeholder="registrar@pashurakshak.in"
+                placeholder="registrar@pawvita.in"
                 aria-invalid={errors.contact ? true : undefined}
                 aria-describedby={errors.contact ? formId + "-contact-error" : undefined}
                 className="w-full min-h-[48px] border border-gray-200 rounded-xl px-4 text-base bg-[#FAF9F6] focus-ring"

@@ -39,7 +39,7 @@ export default function About() {
       <header className="gradient-hero py-16 lg:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-amber-400 font-display font-semibold text-sm uppercase tracking-widest">
-            About PashuRakshak
+            About PawVita
           </p>
           <h1 className="text-4xl lg:text-5xl font-display font-bold text-white mt-3 leading-tight text-balance">
             Safeguarding India&rsquo;s livestock economy

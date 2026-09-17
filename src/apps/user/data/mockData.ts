@@ -1,4 +1,4 @@
-// Mock data for PashuRakshak platform
+// Mock data for PawVita platform
 
 export const DISEASES = [
   'Foot-and-Mouth Disease',
@@ -180,7 +180,7 @@ export const symptomDiagnosis: Record<string, { disease: string; confidence: num
 };
 
 export const testimonials = [
-  { name: 'Ramesh Kumar', role: 'Dairy Farmer', location: 'Anand, Gujarat', quote: 'PashuRakshak ne meri 6 gauon ko bachaya. Ab main apne phone se hi vet ko bulaa sakta hoon.', avatar: 'R', stars: 5 },
+  { name: 'Ramesh Kumar', role: 'Dairy Farmer', location: 'Anand, Gujarat', quote: 'PawVita ne meri 6 gauon ko bachaya. Ab main apne phone se hi vet ko bulaa sakta hoon.', avatar: 'R', stars: 5 },
   { name: 'Dr. Meera Patel', role: 'Veterinary Officer', location: 'Kutch, Gujarat', quote: 'The disease mapping feature has transformed how I prioritize field visits. I can now cover 3x more cases per week.', avatar: 'M', stars: 5 },
   { name: 'Shri Arun Verma', role: 'District Animal Husbandry Officer', location: 'Varanasi, UP', quote: 'For the first time, I have a real-time view of every case in my district. Policy decisions are now evidence-based.', avatar: 'A', stars: 5 },
 ];

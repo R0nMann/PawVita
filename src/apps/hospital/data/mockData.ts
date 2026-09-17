@@ -95,10 +95,10 @@ export const CASES = [
 ];
 
 export const VETS = [
-  { id: "VET-001", name: "Dr. Priya Sharma", specialization: "Ruminant Medicine", cases: 12, available: true, phone: "+91 98765 43210", email: "priya.sharma@pashurakshak.in" },
-  { id: "VET-002", name: "Dr. Amit Patel", specialization: "Infectious Diseases", cases: 8, available: true, phone: "+91 87654 32109", email: "amit.patel@pashurakshak.in" },
-  { id: "VET-003", name: "Dr. Rajan Kumar", specialization: "Surgery & Orthopedics", cases: 5, available: false, phone: "+91 76543 21098", email: "rajan.kumar@pashurakshak.in" },
-  { id: "VET-004", name: "Dr. Sunita Joshi", specialization: "Poultry Medicine", cases: 15, available: true, phone: "+91 65432 10987", email: "sunita.joshi@pashurakshak.in" },
+  { id: "VET-001", name: "Dr. Priya Sharma", specialization: "Ruminant Medicine", cases: 12, available: true, phone: "+91 98765 43210", email: "priya.sharma@pawvita.in" },
+  { id: "VET-002", name: "Dr. Amit Patel", specialization: "Infectious Diseases", cases: 8, available: true, phone: "+91 87654 32109", email: "amit.patel@pawvita.in" },
+  { id: "VET-003", name: "Dr. Rajan Kumar", specialization: "Surgery & Orthopedics", cases: 5, available: false, phone: "+91 76543 21098", email: "rajan.kumar@pawvita.in" },
+  { id: "VET-004", name: "Dr. Sunita Joshi", specialization: "Poultry Medicine", cases: 15, available: true, phone: "+91 65432 10987", email: "sunita.joshi@pawvita.in" },
 ];
 
 export const SAMPLES = [
@@ -204,11 +204,11 @@ export const NOTIFICATIONS = [
 ];
 
 export const CHATBOT_RESPONSES: Record<string, string> = {
-  "fmd": "Foot & Mouth Disease (FMD) is a highly contagious viral disease affecting cloven-hoofed animals. Key symptoms: fever, blisters on mouth/feet, reduced milk output. Report immediately to PashuRakshak.",
+  "fmd": "Foot & Mouth Disease (FMD) is a highly contagious viral disease affecting cloven-hoofed animals. Key symptoms: fever, blisters on mouth/feet, reduced milk output. Report immediately to PawVita.",
   "vaccination": "Vaccination schedules vary by species. Cattle need FMD vaccination every 6 months, HS+BQ annually. Check /hospital/vaccination-schedule for your specific animals.",
   "symptoms": "Common warning signs: fever, lethargy, reduced feed intake, abnormal discharge, skin lesions. Use the Report Symptom tool to submit a guided report.",
   "report": "To report a disease: Go to Report Symptom → select affected animal → describe symptoms using our icon-based guide → submit. A vet will be assigned within 4 hours.",
-  "default": "I'm the PashuRakshak AI Assistant. I can help with disease symptoms, vaccination schedules, case status, and reporting procedures. Ask me anything about livestock health!",
+  "default": "I'm the PawVita AI Assistant. I can help with disease symptoms, vaccination schedules, case status, and reporting procedures. Ask me anything about livestock health!",
 };
 
 export const KPI_STATS = {

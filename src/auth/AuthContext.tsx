@@ -21,7 +21,7 @@ interface AuthValue {
   signOut: () => void;
 }
 
-const STORAGE_KEY = "pashurakshak.session";
+const STORAGE_KEY = "pawvita.session";
 
 const AuthContext = createContext<AuthValue | null>(null);
 

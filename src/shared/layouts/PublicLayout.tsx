@@ -48,7 +48,7 @@ export default function PublicLayout() {
               🐄
             </span>
             <span className="leading-tight">
-              <span className="block font-display font-bold text-[#1B4332]">PashuRakshak</span>
+              <span className="block font-display font-bold text-[#1B4332]">PawVita</span>
               <span className="block text-[11px] text-gray-500">Livestock Disease Surveillance</span>
             </span>
           </Link>
@@ -164,7 +164,7 @@ export default function PublicLayout() {
               <span className="text-2xl" aria-hidden="true">
                 🐄
               </span>
-              <span className="font-display font-bold text-white text-lg">PashuRakshak</span>
+              <span className="font-display font-bold text-white text-lg">PawVita</span>
             </div>
             <p className="text-sm leading-relaxed">
               AI-assisted livestock disease surveillance connecting villages, veterinary hospitals,
@@ -205,7 +205,7 @@ export default function PublicLayout() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 border-t border-white/10 text-xs text-center text-white/50">
-          © 2026 PashuRakshak — a Government of India initiative. Built for Smart India Hackathon.
+          © 2026 PawVita — a Government of India initiative. Built for Smart India Hackathon.
         </div>
       </footer>
     </div>

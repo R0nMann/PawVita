@@ -3,7 +3,7 @@ import { useState } from 'react';
 const MOCK_RESPONSES: Record<string, string> = {
   default: "Namaste! I'm PashuSakhi, your livestock health assistant. I can help you report symptoms, check vaccination schedules, and understand disease alerts. How can I help you today?",
   fmd: "Foot-and-Mouth Disease (FMD) is a highly contagious viral disease. Key signs: blisters in mouth and feet, heavy drooling, lameness. Isolate the animal immediately and call your nearest veterinarian. Do NOT move livestock between farms.",
-  vaccination: "For FMD vaccination, cattle and buffalo should be vaccinated every 6 months. Contact your local veterinary center or use the app to schedule a visit. Keep vaccination records updated in PashuRakshak.",
+  vaccination: "For FMD vaccination, cattle and buffalo should be vaccinated every 6 months. Contact your local veterinary center or use the app to schedule a visit. Keep vaccination records updated in PawVita.",
   report: "To report a sick animal: Go to 'Report Symptom' and select your animal. Choose the symptoms you see from the picture guide. Add a photo if possible. Your report will reach a vet within 2 hours.",
   help: "I can help with: 1) Reporting sick animals 2) Vaccination reminders 3) Understanding disease alerts 4) Finding your nearest vet. Type your question or tap one of the quick options below.",
 };

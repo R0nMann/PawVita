@@ -4,8 +4,8 @@ const FAQS = [
   { q: "How do I report an animal disease symptom?", a: "Go to Hospital Portal → Report Symptom. You'll be guided through a 3-step process: select the affected animal, describe symptoms using our icon-based guide, and submit. A vet will be assigned within 4 hours." },
   { q: "What happens after I submit a report?", a: "Our AI engine immediately analyzes the symptoms and assigns a preliminary diagnosis with confidence score. The nearest available vet officer is notified and dispatched if needed. You can track progress at Hospital Portal → Case Status." },
   { q: "How do I check my animals' vaccination status?", a: "Go to Hospital Portal → Vaccination Schedule. You'll see upcoming, due, and overdue vaccinations with reminders, along with each animal's complete vaccination history." },
-  { q: "What diseases does PashuRakshak cover?", a: "We cover all major livestock diseases including FMD, Lumpy Skin Disease, PPR, Brucellosis, HS, BQ, Theileriosis, Avian Influenza, Classical Swine Fever, and 20+ more conditions." },
-  { q: "Is my data secure?", a: "Yes. All data is encrypted in transit and at rest. PashuRakshak follows the Government of India's Data Security Policy and CERT-In guidelines. Your animal health data is never shared without your consent." },
+  { q: "What diseases does PawVita cover?", a: "We cover all major livestock diseases including FMD, Lumpy Skin Disease, PPR, Brucellosis, HS, BQ, Theileriosis, Avian Influenza, Classical Swine Fever, and 20+ more conditions." },
+  { q: "Is my data secure?", a: "Yes. All data is encrypted in transit and at rest. PawVita follows the Government of India's Data Security Policy and CERT-In guidelines. Your animal health data is never shared without your consent." },
   { q: "How does AI outbreak prediction work?", a: "Our AI model analyzes symptom reports, weather patterns, animal movement data, and historical outbreak records to calculate a confidence score for emerging clusters. A score above 80% triggers an alert to district officials." },
 ];
 
@@ -24,7 +24,7 @@ export default function HelpSupport() {
         {[
           { icon: "📞", label: "Vet Helpline", value: "1800-180-0044", sub: "Toll free · 24/7", color: "bg-green-50 border-green-200" },
           { icon: "💬", label: "WhatsApp", value: "+91 98765 00001", sub: "Response in 1 hour", color: "bg-blue-50 border-blue-200" },
-          { icon: "✉️", label: "Email Support", value: "help@pashurakshak.in", sub: "Response in 24 hours", color: "bg-amber-50 border-amber-200" },
+          { icon: "✉️", label: "Email Support", value: "help@pawvita.in", sub: "Response in 24 hours", color: "bg-amber-50 border-amber-200" },
         ].map(c => (
           <div key={c.label} className={`rounded-2xl border p-5 text-center ${c.color}`}>
             <span className="text-3xl">{c.icon}</span>

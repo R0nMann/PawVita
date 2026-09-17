@@ -24,7 +24,7 @@ export default function Header({ role = "Hospital", user = "Ward Manager" }: Hea
     <header className="bg-white border-b border-[#E8E5DF] px-6 py-3 flex items-center justify-between z-30 sticky top-0 shadow-sm">
       <Link to="/" className="flex items-center gap-2 font-display font-bold text-[#1B4332] text-lg">
         <span className="text-2xl">🐄</span>
-        <span>PashuRakshak</span>
+        <span>PawVita</span>
       </Link>
       <div className="flex items-center gap-4">
         <span className={`text-xs font-semibold px-3 py-1 rounded-full text-white ${ROLE_COLORS[role] ?? "bg-gray-500"}`}>
