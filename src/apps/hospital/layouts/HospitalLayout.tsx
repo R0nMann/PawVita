@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router";
+import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import Header from "../components/Header";
 import ChatBot from "../components/ChatBot";
 
@@ -12,6 +12,7 @@ const NAV = [
 
 export default function HospitalLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
       <Header role="Hospital" user="Ward Manager" />
@@ -49,6 +50,13 @@ export default function HospitalLayout() {
             <Link to="/hospital/help-support" className="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:text-[#1B4332]">
               <span className="text-lg">❓</span> Help & Support
             </Link>
+            <button
+              type="button"
+              onClick={() => navigate("/logout")}
+              className="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full text-left text-[#B91C1C] hover:bg-red-50 mt-1 border-t border-gray-100 pt-3"
+            >
+              <span className="text-lg" aria-hidden="true">🚪</span> Log out
+            </button>
           </div>
         </aside>
         <main className="flex-1 p-6 overflow-auto">

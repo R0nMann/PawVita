@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { useState } from 'react';
 import ChatbotWidget from '../components/ChatbotWidget';
+import AccountMenu from '../../../shared/components/AccountMenu';
 import { notifications } from '../data/mockData';
 
 const navItems = [
@@ -37,7 +38,7 @@ export default function FarmerLayout() {
             <span className="text-xl">🔔</span>
             {unread > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold">{unread}</span>}
           </button>
-          <div className="w-8 h-8 bg-amber-400 rounded-full flex items-center justify-center text-[#1B4332] font-bold text-sm">R</div>
+          <AccountMenu name="Ramesh Kumar" subtitle="Farmer · Kheda, Anand" portal="user" variant="dark" />
         </div>
       </header>
 
@@ -58,6 +59,30 @@ export default function FarmerLayout() {
                 </Link>
               ))}
             </nav>
+
+            {/* Account actions, kept apart from the destinations above so
+                signing out is never a mis-tap away from a nav item. */}
+            <div className="mt-4 pt-4 border-t border-white/10 space-y-1">
+              <Link to="/user/settings" onClick={() => setSidebarOpen(false)} className="sidebar-link">
+                <span className="text-xl" aria-hidden="true">⚙️</span>
+                <span>Settings</span>
+              </Link>
+              <Link to="/user/help-support" onClick={() => setSidebarOpen(false)} className="sidebar-link">
+                <span className="text-xl" aria-hidden="true">❓</span>
+                <span>Help &amp; Support</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarOpen(false);
+                  navigate('/logout');
+                }}
+                className="sidebar-link w-full text-left"
+              >
+                <span className="text-xl" aria-hidden="true">🚪</span>
+                <span>Log out</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

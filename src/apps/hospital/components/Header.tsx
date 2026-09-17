@@ -1,5 +1,6 @@
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { NOTIFICATIONS } from "../data/mockData";
+import AccountMenu from "../../../shared/components/AccountMenu";
 import { useState } from "react";
 
 interface HeaderProps {
@@ -9,7 +10,6 @@ interface HeaderProps {
 
 export default function Header({ role = "Hospital", user = "Ward Manager" }: HeaderProps) {
   const [notifOpen, setNotifOpen] = useState(false);
-  const navigate = useNavigate();
   const unread = NOTIFICATIONS.filter(n => !n.read).length;
 
   const ROLE_COLORS: Record<string, string> = {
@@ -67,12 +67,7 @@ export default function Header({ role = "Hospital", user = "Ward Manager" }: Hea
         <Link to="/hospital/settings" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors" aria-label="Settings">
           ⚙️
         </Link>
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/logout")}>
-          <div className="w-8 h-8 gradient-primary rounded-full flex items-center justify-center text-white text-sm font-bold font-display">
-            {user.charAt(0)}
-          </div>
-          <span className="text-sm text-gray-700 font-medium font-body hidden sm:block">{user}</span>
-        </div>
+        <AccountMenu name={user} subtitle={role} portal="hospital" variant="light" />
       </div>
     </header>
   );

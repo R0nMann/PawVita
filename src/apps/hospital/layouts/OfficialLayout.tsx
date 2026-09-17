@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router";
+import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import Header from "../components/Header";
 import ChatBot from "../components/ChatBot";
 import OutbreakTicker from "../components/OutbreakTicker";
@@ -13,6 +13,7 @@ const NAV = [
 
 export default function OfficialLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
       <OutbreakTicker />
@@ -48,6 +49,13 @@ export default function OfficialLayout() {
             <Link to="/hospital/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all">
               <span>⚙️</span> Settings
             </Link>
+            <button
+              type="button"
+              onClick={() => navigate("/logout")}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all w-full text-left text-red-200 hover:text-white hover:bg-red-500/25 mt-1 border-t border-white/10"
+            >
+              <span aria-hidden="true">🚪</span> Log out
+            </button>
           </div>
         </aside>
         <main className="flex-1 p-6 overflow-auto">
