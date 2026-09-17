@@ -1,0 +1,50 @@
+import { Outlet, Link, useLocation } from "react-router";
+import Header from "../components/Header";
+import ChatBot from "../components/ChatBot";
+
+const NAV = [
+  { label: "Users", href: "/hospital/admin/users", icon: "👥" },
+  { label: "Regions", href: "/hospital/admin/regions", icon: "🗺️" },
+  { label: "System Health", href: "/hospital/admin/system-health", icon: "💻" },
+  { label: "Notifications", href: "/hospital/notifications", icon: "🔔" },
+  { label: "Settings", href: "/hospital/settings", icon: "⚙️" },
+];
+
+export default function AdminLayout() {
+  const location = useLocation();
+  return (
+    <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
+      <Header role="Admin" user="Super Admin" />
+      <div className="flex flex-1">
+        <aside className="hidden md:flex flex-col w-56 bg-gray-900 sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
+          <div className="p-4">
+            <div className="bg-white/10 rounded-2xl p-4 text-white mb-6 border border-white/10">
+              <p className="text-xs font-medium opacity-70">System Admin</p>
+              <p className="font-bold font-display text-lg mt-1">Super Admin</p>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span className="text-xs opacity-80">All systems nominal</span>
+              </div>
+            </div>
+            <nav className="space-y-1">
+              {NAV.map(n => (
+                <Link
+                  key={n.href}
+                  to={n.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${location.pathname === n.href ? "bg-white/15 text-white" : "text-white/60 hover:text-white hover:bg-white/10"}`}
+                >
+                  <span className="text-base">{n.icon}</span>
+                  {n.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </aside>
+        <main className="flex-1 p-6 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
+      <ChatBot />
+    </div>
+  );
+}

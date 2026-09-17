@@ -1,0 +1,354 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+/* ===========================================================================
+   PashuRakshak — unified theme
+   ---------------------------------------------------------------------------
+   Both source applications shipped the same brand palette under different token
+   names, so both naming schemes are kept here and every existing class in
+   src/apps/** keeps working untouched.
+
+   Rules that genuinely collided between the two apps (.sidebar-link, the global
+   table styles, the heading font override and the pulse keyframes) are scoped
+   under [data-portal="..."], which <PortalShell> sets on <html>.
+   =========================================================================== */
+
+@theme {
+  /* Livestock Owner portal token names */
+  --color-forest: #1B4332;
+  --color-forest-light: #2D6A4F;
+  --color-forest-dark: #0F2D1F;
+  --color-canvas: #FAF9F6;
+  --color-alert: #E63946;
+  --color-caution: #FFD166;
+
+  /* Veterinary Hospital portal token names */
+  --color-primary: #1B4332;
+  --color-primary-light: #2D6A4F;
+  --color-primary-dark: #0D2B1F;
+  --color-bg: #FAF9F6;
+  --color-card: #FFFFFF;
+  --color-border: #E8E5DF;
+  --color-muted: #6B7280;
+  --color-warning: #F59E0B;
+
+  /* Shared */
+  --color-amber: #F4A300;
+  --color-amber-light: #FFB833;
+  --color-sky: #4A90D9;
+  --color-sky-light: #6AAEE8;
+  --color-success: #40916C;
+
+  --font-display: 'Poppins', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  --radius-card: 1rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: 'Inter', sans-serif;
+  background-color: #FAF9F6;
+  color: #1a2e1e;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+}
+
+.font-display { font-family: 'Poppins', sans-serif; }
+.font-body { font-family: 'Inter', sans-serif; }
+
+/* --------------------------------------------------------------- a11y ---- */
+
+/*
+ * One visible focus indicator for the shared shell. 3px at 3:1 against both the
+ * canvas and the dark hero, with an offset so it never sits on the control's
+ * own edge.
+ */
+.focus-ring:focus-visible {
+  outline: 3px solid #4A90D9;
+  outline-offset: 2px;
+}
+
+/* The portal-choice cards hide their radio, so surface its focus on the card. */
+.choice-card:has(input:focus-visible) {
+  outline: 3px solid #4A90D9;
+  outline-offset: 2px;
+}
+
+/* Nothing inside src/apps/** declares a focus style, so give every interactive
+   element a usable default instead of relying on the UA ring over dark panels. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
+  outline: 3px solid #4A90D9;
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  translate: -50% -110%;
+  z-index: 100;
+  padding: 0.75rem 1.25rem;
+  background: #1B4332;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0 0 0.75rem 0.75rem;
+  transition: translate 0.15s ease;
+}
+
+.skip-link:focus-visible {
+  translate: -50% 0;
+}
+
+/* ------------------------------------------------------------ scrollbar --- */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #a0a0a0; }
+
+/* ------------------------------------------------------------- surfaces --- */
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.glass-dark {
+  background: rgba(27, 67, 50, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shadow-card {
+  box-shadow: 0 4px 24px rgba(27, 67, 50, 0.10), 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.shadow-card-hover:hover {
+  box-shadow: 0 8px 32px rgba(27, 67, 50, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+/* ------------------------------------------------------------ gradients --- */
+
+.gradient-hero {
+  background: linear-gradient(135deg, #0F2D1F 0%, #1B4332 40%, #2D6A4F 70%, #1B4332 100%);
+}
+
+/* Livestock Owner portal names */
+.gradient-card-green { background: linear-gradient(135deg, #1B4332 0%, #40916C 100%); }
+.gradient-card-amber { background: linear-gradient(135deg, #F4A300 0%, #FFB833 100%); }
+.gradient-card-sky { background: linear-gradient(135deg, #4A90D9 0%, #6AAEE8 100%); }
+.gradient-card-alert { background: linear-gradient(135deg, #E63946 0%, #FF6B6B 100%); }
+
+/* Veterinary Hospital portal names */
+.gradient-primary { background: linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%); }
+.gradient-amber { background: linear-gradient(135deg, #F4A300 0%, #FFD166 100%); }
+.gradient-sky { background: linear-gradient(135deg, #4A90D9 0%, #6BA8E5 100%); }
+.gradient-red { background: linear-gradient(135deg, #E63946 0%, #FF6B6B 100%); }
+
+/* ----------------------------------------------------------- animation --- */
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* The hospital app's ring starts tighter and ends smaller than the owner app's. */
+@keyframes pulse-ring-hospital {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in-up { animation: fade-in-up 0.5s ease forwards; }
+.animate-slide-in-right { animation: slide-in-right 0.4s ease forwards; }
+.animate-ticker { animation: ticker-scroll 30s linear infinite; }
+.ticker-animation { animation: ticker-scroll 30s linear infinite; }
+.count-up { animation: count-up 0.6s ease-out forwards; }
+.slide-in { animation: slide-in 0.3s ease-out forwards; }
+.fade-up { animation: fade-up 0.5s ease-out forwards; }
+
+.pulse-dot::before,
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+[data-portal='hospital'] .pulse-ring::before {
+  animation-name: pulse-ring-hospital;
+}
+
+/* ----------------------------------------------------------- utilities --- */
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.severity-high { background: #FEE2E2; color: #B91C1C; }
+.severity-medium { background: #FEF3C7; color: #B45309; }
+.severity-low { background: #D1FAE5; color: #047857; }
+
+/* ===========================================================================
+   Portal-scoped rules
+   The two apps defined these identically-named rules with incompatible values.
+   =========================================================================== */
+
+/* --- Livestock Owner portal ------------------------------------------------ */
+
+/* A complete link style for the app's dark sidebars. */
+[data-portal='user'] .sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  transition: background-color 0.2s, color 0.2s;
+  text-decoration: none;
+}
+
+[data-portal='user'] .sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+[data-portal='user'] .sidebar-link.active {
+  background: rgba(244, 163, 0, 0.2);
+  color: #F4A300;
+}
+
+/* Table defaults for a portal whose tables carry no utility padding. */
+[data-portal='user'] table { border-collapse: collapse; width: 100%; }
+[data-portal='user'] th { font-family: 'Poppins', sans-serif; font-weight: 600; text-align: left; }
+[data-portal='user'] td,
+[data-portal='user'] th { padding: 12px 16px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
+[data-portal='user'] tbody tr:hover { background: rgba(27, 67, 50, 0.03); }
+
+/* --- Veterinary Hospital portal -------------------------------------------- */
+
+/* A modifier layered on top of Tailwind classes, for light sidebars. */
+[data-portal='hospital'] .sidebar-link {
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+[data-portal='hospital'] .sidebar-link:hover {
+  background: rgba(27, 67, 50, 0.08);
+  transform: translateX(4px);
+}
+
+[data-portal='hospital'] .sidebar-link.active {
+  background: rgba(27, 67, 50, 0.12);
+  color: #1B4332;
+  font-weight: 600;
+}
+
+[data-portal='hospital'] h1,
+[data-portal='hospital'] h2,
+[data-portal='hospital'] h3,
+[data-portal='hospital'] h4,
+[data-portal='hospital'] h5,
+[data-portal='hospital'] h6 {
+  font-family: 'Poppins', sans-serif;
+}
+
+/* ===========================================================================
+   Reduced motion — honour the OS setting across both apps at once.
+   =========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-portal='hospital'] .sidebar-link:hover {
+    transform: none;
+  }
+}
