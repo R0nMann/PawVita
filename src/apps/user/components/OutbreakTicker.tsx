@@ -1,14 +1,17 @@
-import { outbreakTicker } from '../data/mockData';
+import { usePublicAlerts } from '../../../api/queries';
+import { timeAgo } from '../../../lib/format';
 
+/** Scrolling strip of open cases per district and disease over the last fortnight. */
 export default function OutbreakTicker() {
+  const { data: alerts = [] } = usePublicAlerts();
   const severityColors: Record<string, string> = {
     high: 'text-red-400',
-    medium: 'text-yellow-400',
+    moderate: 'text-yellow-400',
     low: 'text-green-400',
   };
   const severityDots: Record<string, string> = {
     high: 'bg-red-500',
-    medium: 'bg-yellow-400',
+    moderate: 'bg-yellow-400',
     low: 'bg-green-400',
   };
 
@@ -23,16 +26,20 @@ export default function OutbreakTicker() {
           <span className="text-xs font-semibold text-red-400 uppercase tracking-widest font-display whitespace-nowrap">Live Alerts</span>
         </div>
         <div className="flex-1 overflow-hidden">
-          <div className="animate-ticker flex gap-12 whitespace-nowrap">
-            {[...outbreakTicker, ...outbreakTicker].map((item, i) => (
-              <span key={i} className="inline-flex items-center gap-2 text-xs text-white/80">
-                <span className={`inline-block w-1.5 h-1.5 rounded-full ${severityDots[item.severity]}`}></span>
-                <span className={`font-semibold ${severityColors[item.severity]}`}>{item.disease}</span>
-                <span>detected in {item.district}, {item.state}</span>
-                <span className="text-white/40">• {item.time}</span>
-              </span>
-            ))}
-          </div>
+          {alerts.length === 0 ? (
+            <span className="text-xs text-white/60">No active outbreak alerts in the last 14 days.</span>
+          ) : (
+            <div className="animate-ticker flex gap-12 whitespace-nowrap">
+              {[...alerts, ...alerts].map((item, i) => (
+                <span key={i} className="inline-flex items-center gap-2 text-xs text-white/80">
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${severityDots[item.severity]}`}></span>
+                  <span className={`font-semibold ${severityColors[item.severity]}`}>{item.diseaseName ?? item.diseaseCode.toUpperCase()}</span>
+                  <span>{item.cases} open case{item.cases === 1 ? '' : 's'} in {item.district}{item.state ? `, ${item.state}` : ''}</span>
+                  <span className="text-white/40">• {timeAgo(item.latest)}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

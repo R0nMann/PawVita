@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { INDIA_STATES_RISK, OUTBREAKS } from "../../data/mockData";
+import { INDIA_STATES_RISK, OUTBREAKS } from "../../data/aiPreview";
 
 const RISK_COLORS: Record<string, string> = { high: "#E63946", medium: "#F4A300", low: "#10B981" };
 

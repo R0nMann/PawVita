@@ -1,10 +1,11 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import Header from "../components/Header";
 import ChatBot from "../components/ChatBot";
+import { useSession } from "../../../auth/AuthContext";
+import { useLabQueue } from "../../../api/queries";
 
 const NAV = [
   { label: "Sample Queue", href: "/hospital/lab/queue", icon: "🔬" },
-  { label: "Current Sample", href: "/hospital/lab/sample/LAB-2024-001", icon: "🧪" },
   { label: "Notifications", href: "/hospital/notifications", icon: "🔔" },
   { label: "Settings", href: "/hospital/settings", icon: "⚙️" },
 ];
@@ -12,18 +13,20 @@ const NAV = [
 export default function LabLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const session = useSession();
+  const queue = useLabQueue({ status: ["requested", "collected", "received", "processing"] });
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
-      <Header role="Lab" user="Mohan Lal (Lab Tech)" />
+      <Header role="Lab" />
       <div className="flex flex-1">
         <aside className="hidden md:flex flex-col w-56 bg-white border-r border-[#E8E5DF] sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
           <div className="p-4">
             <div className="bg-gradient-to-br from-orange-500 to-orange-400 rounded-2xl p-4 text-white mb-6">
-              <p className="text-xs font-medium opacity-80 font-body">Diagnostic Lab</p>
+              <p className="text-xs font-medium opacity-80 font-body">{session.account.organization?.name ?? "Diagnostic Lab"}</p>
               <p className="font-bold font-display text-lg mt-1">Lab Portal</p>
               <div className="flex items-center gap-2 mt-2">
                 <div className="w-2 h-2 bg-yellow-300 rounded-full"></div>
-                <span className="text-xs opacity-90">3 samples pending</span>
+                <span className="text-xs opacity-90">{queue.data ? `${queue.data.items.length} samples pending` : "…"}</span>
               </div>
             </div>
             <nav className="space-y-1">

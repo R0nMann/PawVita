@@ -16,8 +16,6 @@ export default function OfficialLayout() {
       navItems={navItems}
       title="District Dashboard"
       subtitle="Govt. Official"
-      userInitial="A"
-      userName="Shri Arun Verma"
     />
   );
 }

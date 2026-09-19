@@ -1,56 +1,85 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import { ANIMALS } from "../../data/mockData";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { caseApi } from "../../../../api/endpoints";
+import { useAdmissions, useCatalog } from "../../../../api/queries";
+import type { AdmissionListItem } from "../../../../api/types";
+import { useSession } from "../../../../auth/AuthContext";
+import { SPECIES_LABEL, speciesEmoji } from "../../../../lib/format";
+import { newId } from "../../../../offline/outbox";
+import { previewDiagnosis, VOICE_PREVIEW } from "../../../../shared/ai/preview";
+import { FormError, Loading } from "../../../../shared/ui/States";
+import { WARD_STATUS, wardStatus } from "./wardStatus";
 
-const SYMPTOMS = [
-  { id: "fever", label: "Fever", icon: "🌡️" },
-  { id: "blisters", label: "Blisters/Sores", icon: "🩹" },
-  { id: "lameness", label: "Lameness", icon: "🦵" },
-  { id: "nasal", label: "Nasal Discharge", icon: "💧" },
-  { id: "diarrhea", label: "Diarrhea", icon: "⚠️" },
-  { id: "lethargy", label: "Lethargy", icon: "😴" },
-  { id: "loss-appetite", label: "Loss of Appetite", icon: "🚫" },
-  { id: "skin-nodules", label: "Skin Nodules", icon: "🔴" },
-  { id: "swollen-lymph", label: "Swollen Lymph Nodes", icon: "🔵" },
-  { id: "reduced-milk", label: "Reduced Milk", icon: "🥛" },
-  { id: "eye-discharge", label: "Eye Discharge", icon: "👁️" },
-  { id: "coughing", label: "Coughing", icon: "💨" },
-];
-
-const AI_PREDICTIONS = [
-  { disease: "Foot & Mouth Disease", confidence: 87, color: "#E63946" },
-  { disease: "Lumpy Skin Disease", confidence: 62, color: "#F4A300" },
-  { disease: "Hemorrhagic Septicemia", confidence: 34, color: "#4A90D9" },
-];
+const PREDICTION_COLORS = ["#E63946", "#F4A300", "#4A90D9"];
 
 export default function ReportSymptom() {
+  const [params] = useSearchParams();
+  const session = useSession();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const catalog = useCatalog();
+  const admissionsQ = useAdmissions({ active: true }, !!session.account.organizationId);
+
   const [step, setStep] = useState(1);
-  const [selectedAnimal, setSelectedAnimal] = useState("");
+  const [selectedAnimal, setSelectedAnimal] = useState(params.get("animalId") ?? "");
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [recording, setRecording] = useState(false);
   const [voiceText, setVoiceText] = useState("");
-  const [showAI, setShowAI] = useState(false);
-  const navigate = useNavigate();
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
-  const toggleSymptom = (id: string) => {
-    setSymptoms(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  // Show the AI screen for a moment, then open the new case.
+  useEffect(() => {
+    if (!createdId) return;
+    const t = setTimeout(() => navigate(`/hospital/ward/case-status/${createdId}`), 4000);
+    return () => clearTimeout(t);
+  }, [createdId, navigate]);
+
+  const admitted = admissionsQ.data?.items ?? [];
+  const chosen: AdmissionListItem | undefined = admitted.find(a => a.animal.id === selectedAnimal);
+  const catalogSymptoms = catalog.data?.symptoms ?? [];
+
+  const toggleSymptom = (code: string) => {
+    setSymptoms(prev => prev.includes(code) ? prev.filter(s => s !== code) : [...prev, code]);
   };
 
   const simulateVoice = () => {
     setRecording(true);
     setTimeout(() => {
       setRecording(false);
-      setVoiceText("The cow Motilal has been showing high fever since yesterday morning, blisters on the tongue, and is not eating. It's also limping on the right front leg.");
-      setSymptoms(["fever", "blisters", "lameness", "loss-appetite"]);
+      setVoiceText(VOICE_PREVIEW.ward.transcript);
+      setSymptoms(VOICE_PREVIEW.ward.symptomCodes);
     }, 2500);
   };
 
-  const handleSubmit = () => {
-    setShowAI(true);
-    setTimeout(() => navigate("/hospital/ward/case-status/AN-002"), 4000);
+  const handleSubmit = async () => {
+    if (!chosen) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const created = await caseApi.create({
+        id: newId(),
+        herdId: chosen.animal.herdId,
+        animalId: chosen.animal.id,
+        symptomCodes: symptoms,
+        description: [voiceText, notes.trim()].filter(Boolean).join("\n") || undefined,
+        reportedAt: new Date().toISOString(),
+      });
+      void queryClient.invalidateQueries({ queryKey: ["cases"] });
+      void queryClient.invalidateQueries({ queryKey: ["admissions"] });
+      setCreatedId(created.id);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (showAI) {
+  if (createdId) {
+    const predictions = previewDiagnosis(symptoms).slice(0, 3);
     return (
       <div className="max-w-lg mx-auto">
         <div className="bg-white rounded-3xl border border-[#E8E5DF] shadow-xl p-8 text-center">
@@ -59,19 +88,19 @@ export default function ReportSymptom() {
           <p className="text-gray-500 text-sm mb-8">Cross-referencing against 500+ disease profiles and regional outbreak data</p>
           <div className="space-y-4 text-left">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Preliminary Diagnosis</p>
-            {AI_PREDICTIONS.map(p => (
+            {predictions.map((p, i) => (
               <div key={p.disease}>
                 <div className="flex justify-between mb-1">
                   <span className="text-sm font-medium text-gray-800">{p.disease}</span>
-                  <span className="text-sm font-bold" style={{ color: p.color }}>{p.confidence}%</span>
+                  <span className="text-sm font-bold" style={{ color: PREDICTION_COLORS[i] }}>{p.confidence}%</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="h-2 rounded-full transition-all duration-1000" style={{ width: `${p.confidence}%`, backgroundColor: p.color }}></div>
+                  <div className="h-2 rounded-full transition-all duration-1000" style={{ width: `${p.confidence}%`, backgroundColor: PREDICTION_COLORS[i] }}></div>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-sm text-[#1B4332] mt-6 font-medium">Vet officer is being assigned... Redirecting to case status.</p>
+          <p className="text-sm text-[#1B4332] mt-6 font-medium">Report saved. The veterinary team has been notified. Opening the case…</p>
         </div>
       </div>
     );
@@ -98,25 +127,32 @@ export default function ReportSymptom() {
       {step === 1 && (
         <div className="bg-white rounded-2xl border border-[#E8E5DF] p-6">
           <h2 className="font-display font-semibold text-gray-900 mb-4">Which animal is affected?</h2>
+          {admissionsQ.isPending && <Loading label="Loading ward…" />}
+          {admissionsQ.isSuccess && admitted.length === 0 && (
+            <p className="text-sm text-gray-500">
+              No animals are admitted. <Link to="/hospital/ward/my-animals" className="text-[#4A90D9] underline">Admit one first</Link>.
+            </p>
+          )}
           <div className="grid gap-3">
-            {ANIMALS.map(a => (
-              <button
-                key={a.id}
-                onClick={() => setSelectedAnimal(a.id)}
-                className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${selectedAnimal === a.id ? "border-[#1B4332] bg-[#1B4332]/5" : "border-gray-200 hover:border-gray-300"}`}
-              >
-                <span className="text-2xl">{a.species === "Cow" || a.species === "Bull" ? "🐄" : a.species === "Buffalo" ? "🐃" : a.species === "Goat" || a.species === "Sheep" ? "🐐" : "🐴"}</span>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{a.name} <span className="text-gray-400 text-xs ml-1">#{a.tag}</span></p>
-                  <p className="text-xs text-gray-500">{a.species} · {a.breed} · {a.age} · {a.ward}</p>
-                </div>
-                <span className={`text-xs font-bold px-2 py-1 rounded-full ${a.status === "critical" ? "bg-red-100 text-red-600" : a.status === "healthy" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
-                  {a.status}
-                </span>
-              </button>
-            ))}
+            {admitted.map(a => {
+              const s = WARD_STATUS[wardStatus(a)];
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setSelectedAnimal(a.animal.id)}
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${selectedAnimal === a.animal.id ? "border-[#1B4332] bg-[#1B4332]/5" : "border-gray-200 hover:border-gray-300"}`}
+                >
+                  <span className="text-2xl">{speciesEmoji(a.animal.species)}</span>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">{a.animal.name ?? "Unnamed"} {a.animal.tagNumber && <span className="text-gray-400 text-xs ml-1">#{a.animal.tagNumber}</span>}</p>
+                    <p className="text-xs text-gray-500">{[SPECIES_LABEL[a.animal.species], a.animal.breed, a.ward].filter(Boolean).join(" · ")}</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${s.bg} ${s.color}`}>{s.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <button onClick={() => selectedAnimal && setStep(2)} disabled={!selectedAnimal} className="w-full gradient-primary text-white font-bold py-3 rounded-xl mt-6 disabled:opacity-40 hover:opacity-90 transition-all">
+          <button onClick={() => chosen && setStep(2)} disabled={!chosen} className="w-full gradient-primary text-white font-bold py-3 rounded-xl mt-6 disabled:opacity-40 hover:opacity-90 transition-all">
             Continue →
           </button>
         </div>
@@ -133,6 +169,7 @@ export default function ReportSymptom() {
               <button
                 onClick={simulateVoice}
                 disabled={recording}
+                aria-label="Record voice description"
                 className={`w-10 h-10 rounded-full flex items-center justify-center text-white transition-all ${recording ? "bg-red-500 animate-pulse" : "bg-[#4A90D9] hover:bg-[#3a80c9]"}`}
               >
                 🎤
@@ -145,15 +182,17 @@ export default function ReportSymptom() {
             {voiceText && <p className="text-sm text-gray-700 bg-white rounded-lg p-3 border border-gray-200 italic">"{voiceText}"</p>}
           </div>
 
+          {catalog.isPending && <Loading label="Loading symptoms…" />}
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">
-            {SYMPTOMS.map(s => (
+            {catalogSymptoms.map(s => (
               <button
-                key={s.id}
-                onClick={() => toggleSymptom(s.id)}
-                className={`p-3 rounded-xl border-2 text-center transition-all ${symptoms.includes(s.id) ? "border-[#1B4332] bg-[#1B4332]/10" : "border-gray-200 hover:border-gray-300"}`}
+                key={s.code}
+                onClick={() => toggleSymptom(s.code)}
+                aria-pressed={symptoms.includes(s.code)}
+                className={`p-3 rounded-xl border-2 text-center transition-all ${symptoms.includes(s.code) ? "border-[#1B4332] bg-[#1B4332]/10" : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span className="text-2xl block mb-1">{s.icon}</span>
-                <span className={`text-xs font-medium ${symptoms.includes(s.id) ? "text-[#1B4332]" : "text-gray-600"}`}>{s.label}</span>
+                <span className={`text-xs font-medium ${symptoms.includes(s.code) ? "text-[#1B4332]" : "text-gray-600"}`}>{s.name}</span>
               </button>
             ))}
           </div>
@@ -167,35 +206,43 @@ export default function ReportSymptom() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 3 && chosen && (
         <div className="bg-white rounded-2xl border border-[#E8E5DF] p-6">
           <h2 className="font-display font-semibold text-gray-900 mb-4">Review & Submit Report</h2>
           <div className="space-y-4 mb-6">
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-1">Affected Animal</p>
-              <p className="font-semibold text-gray-900">{ANIMALS.find(a => a.id === selectedAnimal)?.name} — {ANIMALS.find(a => a.id === selectedAnimal)?.species}</p>
+              <p className="font-semibold text-gray-900">{chosen.animal.name ?? "Unnamed"} — {SPECIES_LABEL[chosen.animal.species]}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-500 mb-2">Reported Symptoms ({symptoms.length})</p>
               <div className="flex flex-wrap gap-2">
-                {symptoms.map(s => {
-                  const sym = SYMPTOMS.find(x => x.id === s)!;
-                  return <span key={s} className="text-xs bg-[#1B4332]/10 text-[#1B4332] px-3 py-1 rounded-full font-medium">{sym.icon} {sym.label}</span>;
+                {symptoms.map(code => {
+                  const sym = catalogSymptoms.find(x => x.code === code);
+                  return <span key={code} className="text-xs bg-[#1B4332]/10 text-[#1B4332] px-3 py-1 rounded-full font-medium">{sym?.icon} {sym?.name ?? code}</span>;
                 })}
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">Additional Notes (Optional)</label>
-              <textarea rows={3} placeholder="Any other observations — duration, severity, affected herd size..." className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1B4332] resize-none"></textarea>
+              <label htmlFor="ward-notes" className="text-sm font-medium text-gray-700 block mb-1">Additional Notes (Optional)</label>
+              <textarea
+                id="ward-notes"
+                rows={3}
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Any other observations — duration, severity, affected herd size..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1B4332] resize-none"
+              ></textarea>
             </div>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-6">
-            <p className="text-xs text-blue-700">📍 Location auto-detected: District Veterinary Hospital, Pune — Ward A</p>
+            <p className="text-xs text-blue-700">📍 {session.account.organization?.name ?? "Hospital"} — {chosen.ward}</p>
           </div>
-          <div className="flex gap-3">
+          <FormError error={error} />
+          <div className="flex gap-3 mt-3">
             <button onClick={() => setStep(2)} className="flex-1 border-2 border-gray-200 text-gray-600 font-semibold py-3 rounded-xl hover:bg-gray-50">Back</button>
-            <button onClick={handleSubmit} className="flex-1 gradient-primary text-white font-bold py-3 rounded-xl hover:opacity-90">
-              Submit Report 🧠
+            <button onClick={() => void handleSubmit()} disabled={submitting} className="flex-1 gradient-primary text-white font-bold py-3 rounded-xl hover:opacity-90 disabled:opacity-60">
+              {submitting ? "Submitting…" : "Submit Report 🧠"}
             </button>
           </div>
         </div>

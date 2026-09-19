@@ -1,7 +1,7 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link, Navigate, Outlet, useLocation } from "react-router";
 import { useAuth, homeFor } from "./AuthContext";
-import { PORTALS } from "./portals";
+import { PORTALS, canOpen } from "./portals";
 import type { PortalId } from "./portals";
 import { IconArrowRight, IconShield } from "../shared/components/Icons";
 
@@ -37,6 +37,15 @@ export default function PortalShell({ portal }: { portal: PortalId }) {
     return <WrongPortal requested={portal} />;
   }
 
+  if (session.account.status !== "active") {
+    return <AccountNotActive />;
+  }
+
+  // Each role works in its own area; send anyone who wanders elsewhere home.
+  if (!canOpen(session.portal, session.role, location.pathname)) {
+    return <Navigate to={homeFor(session)} replace />;
+  }
+
   return (
     <Suspense fallback={<PortalLoading portal={portal} />}>
       <Outlet />
@@ -62,6 +71,55 @@ function PortalLoading({ portal }: { portal: PortalId }) {
         </span>
         Opening the {config.name} portal…
       </p>
+    </div>
+  );
+}
+
+/**
+ * Staff who register themselves wait for an administrator. Show where they
+ * stand instead of a portal full of "forbidden" errors.
+ */
+function AccountNotActive() {
+  const { session, refreshAccount } = useAuth();
+  const [checking, setChecking] = useState(false);
+  const suspended = session?.account.status === "suspended";
+
+  return (
+    <div className="min-h-dvh grid place-items-center bg-[#FAF9F6] px-4 py-12">
+      <div className="w-full max-w-md bg-white rounded-3xl border border-[#E8E5DF] shadow-sm p-8 text-center">
+        <span className="w-14 h-14 rounded-2xl bg-amber-50 grid place-items-center text-2xl mx-auto mb-5" aria-hidden="true">
+          {suspended ? "⛔" : "⏳"}
+        </span>
+        <h1 className="text-xl font-display font-bold text-[#1B4332]">
+          {suspended ? "Your account is suspended" : "Your account is awaiting approval"}
+        </h1>
+        <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+          {suspended
+            ? "Contact your PawVita administrator to restore access."
+            : `Thanks, ${session?.name}. A PawVita administrator checks every staff registration before it can see case records. You will get a notification once it is approved.`}
+        </p>
+        <div className="mt-6 grid gap-3">
+          {!suspended && (
+            <button
+              type="button"
+              disabled={checking}
+              onClick={() => {
+                setChecking(true);
+                void refreshAccount().finally(() => setChecking(false));
+              }}
+              className="inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-xl bg-[#1B4332] text-white font-semibold font-display hover:bg-[#2D6A4F] transition-colors focus-ring disabled:opacity-60"
+            >
+              {checking ? "Checking…" : "Check again"}
+            </button>
+          )}
+          <Link
+            to="/logout"
+            className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-xl border border-[#E8E5DF] text-[#1B4332] font-semibold hover:bg-[#FAF9F6] transition-colors focus-ring"
+          >
+            Sign out
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

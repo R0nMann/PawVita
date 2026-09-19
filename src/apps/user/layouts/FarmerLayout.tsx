@@ -2,7 +2,9 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { useState } from 'react';
 import ChatbotWidget from '../components/ChatbotWidget';
 import AccountMenu from '../../../shared/components/AccountMenu';
-import { notifications } from '../data/mockData';
+import { useUnreadCount } from '../../../api/queries';
+import { roleFor } from '../../../auth/portals';
+import { useSession } from '../../../auth/AuthContext';
 
 const navItems = [
   { to: '/user/farmer/home', icon: '🏠', label: 'Home', hindiLabel: 'होम' },
@@ -16,7 +18,9 @@ export default function FarmerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const unread = notifications.filter(n => !n.read).length;
+  const session = useSession();
+  const unread = useUnreadCount();
+  const roleShort = roleFor(session.portal, session.role).short;
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
@@ -29,7 +33,7 @@ export default function FarmerLayout() {
             <span className="text-xl">🐄</span>
             <div>
               <p className="font-bold font-display text-sm leading-none">PawVita</p>
-              <p className="text-white/60 text-xs leading-none">Farmer Portal</p>
+              <p className="text-white/60 text-xs leading-none">{roleShort} Portal</p>
             </div>
           </div>
         </div>
@@ -38,7 +42,12 @@ export default function FarmerLayout() {
             <span className="text-xl">🔔</span>
             {unread > 0 && <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center font-bold">{unread}</span>}
           </button>
-          <AccountMenu name="Ramesh Kumar" subtitle="Farmer · Kheda, Anand" portal="user" variant="dark" />
+          <AccountMenu
+            name={session.name}
+            subtitle={[roleShort, session.district].filter(Boolean).join(' · ')}
+            portal="user"
+            variant="dark"
+          />
         </div>
       </header>
 

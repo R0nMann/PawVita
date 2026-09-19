@@ -1,4 +1,4 @@
-import { outbreakClusters } from '../../data/mockData';
+import { outbreakClusters } from '../../data/aiPreview';
 
 export default function OutbreakClusters() {
   return (

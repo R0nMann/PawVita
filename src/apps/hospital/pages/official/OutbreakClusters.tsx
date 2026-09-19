@@ -1,4 +1,4 @@
-import { OUTBREAKS } from "../../data/mockData";
+import { OUTBREAKS } from "../../data/aiPreview";
 
 const AI_CLUSTERS = [
   { id: "CLU-001", region: "Pune–Satara Belt, Maharashtra", disease: "Foot & Mouth Disease (Type O)", confidence: 94, cases: 47, radius: "35 km", animals: 12400, weather: "Post-monsoon humidity 87%", trigger: "Symptom density × movement × weather pattern", status: "escalated" },

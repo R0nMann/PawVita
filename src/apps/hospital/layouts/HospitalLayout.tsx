@@ -1,6 +1,8 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import Header from "../components/Header";
 import ChatBot from "../components/ChatBot";
+import { useSession } from "../../../auth/AuthContext";
+import { useAdmissions } from "../../../api/queries";
 
 const NAV = [
   { label: "Dashboard", href: "/hospital/ward/home", icon: "🏠" },
@@ -13,18 +15,22 @@ const NAV = [
 export default function HospitalLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const session = useSession();
+  const admitted = useAdmissions({ active: true }, !!session.account.organizationId);
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
-      <Header role="Hospital" user="Ward Manager" />
+      <Header role="Hospital" />
       <div className="flex flex-1">
         <aside className="hidden md:flex flex-col w-60 bg-white border-r border-[#E8E5DF] sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
           <div className="p-4">
             <div className="bg-gradient-to-br from-[#4A90D9] to-[#6BA8E5] rounded-2xl p-4 text-white mb-6">
-              <p className="text-xs font-medium opacity-80 font-body">Veterinary Hospital</p>
+              <p className="text-xs font-medium opacity-80 font-body">{session.account.organization?.name ?? "Veterinary Hospital"}</p>
               <p className="font-bold font-display text-lg mt-1">Ward Portal</p>
               <div className="flex items-center gap-2 mt-2">
                 <div className="w-2 h-2 bg-green-300 rounded-full"></div>
-                <span className="text-xs opacity-90">8 animals admitted</span>
+                <span className="text-xs opacity-90">
+                  {admitted.data ? `${admitted.data.items.length} animals admitted` : session.account.organizationId ? "…" : "No hospital linked"}
+                </span>
               </div>
             </div>
             <nav className="space-y-1">

@@ -1,11 +1,20 @@
-import { DISEASE_TREND_DATA, VACCINATION_COVERAGE, RISK_FORECAST, SPECIES_DISTRIBUTION } from "../../data/mockData";
+import { RISK_FORECAST } from "../../data/aiPreview";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  AreaChart, Area
+  ResponsiveContainer, AreaChart, Area,
 } from "recharts";
+import { useCoverage } from "../../../../api/queries";
+import { useDiseaseTrend } from "../../../../shared/analytics/charts";
+
+/** Coverage the vaccination programme aims for in every area. */
+const COVERAGE_TARGET = 80;
 
 export default function Analytics() {
+  const frequency = useDiseaseTrend({ months: 6, top: 3 });
+  const multi = useDiseaseTrend({ months: 6, top: 5 });
+  const coverageQ = useCoverage();
+  const coverage = (coverageQ.data?.items ?? []).filter(c => c.animals > 0);
+
   return (
     <div className="space-y-6">
       <div>
@@ -48,41 +57,44 @@ export default function Analytics() {
           <h2 className="font-display font-semibold text-gray-900 mb-1">Disease Frequency — 6 Months</h2>
           <p className="text-xs text-gray-500 mb-4">Case count by disease type</p>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={DISEASE_TREND_DATA}>
+            <BarChart data={frequency.data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
               <Tooltip contentStyle={{ borderRadius: "12px" }} />
               <Legend />
-              <Bar dataKey="fmd" name="FMD" fill="#E63946" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="avian" name="Avian Flu" fill="#4A90D9" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="lsd" name="LSD" fill="#F4A300" radius={[3, 3, 0, 0]} />
+              {frequency.keys.map(k => (
+                <Bar key={k.key} dataKey={k.key} name={k.label} fill={k.color} radius={[3, 3, 0, 0]} />
+              ))}
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Vaccination Coverage */}
         <div className="bg-white rounded-2xl border border-[#E8E5DF] p-6">
-          <h2 className="font-display font-semibold text-gray-900 mb-1">Vaccination Coverage by District</h2>
-          <p className="text-xs text-gray-500 mb-4">Coverage % vs target</p>
+          <h2 className="font-display font-semibold text-gray-900 mb-1">Vaccination Coverage by {coverageQ.data?.level ?? "area"}</h2>
+          <p className="text-xs text-gray-500 mb-4">Coverage % vs {COVERAGE_TARGET}% target — lowest first</p>
+          {coverageQ.isSuccess && coverage.length === 0 && <p className="text-sm text-gray-400">No animals registered in your area yet.</p>}
           <div className="space-y-3">
-            {VACCINATION_COVERAGE.map(d => (
-              <div key={d.district}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-700">{d.district}</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${d.coverage >= d.target ? "text-green-600" : d.coverage >= d.target * 0.8 ? "text-amber-600" : "text-red-600"}`}>
-                      {d.coverage}%
-                    </span>
-                    <span className="text-xs text-gray-400">/{d.target}%</span>
+            {coverage.map(d => {
+              const value = d.coveragePercent ?? 0;
+              const color = value >= COVERAGE_TARGET ? "#10B981" : value >= COVERAGE_TARGET * 0.8 ? "#F4A300" : "#E63946";
+              return (
+                <div key={d.regionId}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-gray-700">{d.region.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold" style={{ color }}>{value}%</span>
+                      <span className="text-xs text-gray-400">/{COVERAGE_TARGET}% · {d.animals} animals</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2 relative">
+                    <div className="h-2 rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: color }}></div>
+                    <div className="absolute top-0 h-2 w-0.5 bg-gray-400" style={{ left: `${COVERAGE_TARGET}%` }}></div>
                   </div>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2 relative">
-                  <div className="h-2 rounded-full transition-all" style={{ width: `${d.coverage}%`, backgroundColor: d.coverage >= d.target ? "#10B981" : d.coverage >= d.target * 0.8 ? "#F4A300" : "#E63946" }}></div>
-                  <div className="absolute top-0 h-2 w-0.5 bg-gray-400" style={{ left: `${d.target}%` }}></div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -91,17 +103,15 @@ export default function Analytics() {
       <div className="bg-white rounded-2xl border border-[#E8E5DF] p-6">
         <h2 className="font-display font-semibold text-gray-900 mb-4">Multi-Disease Trend Analysis</h2>
         <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={DISEASE_TREND_DATA}>
+          <LineChart data={multi.data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
             <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #E8E5DF" }} />
             <Legend />
-            <Line type="monotone" dataKey="fmd" name="FMD" stroke="#E63946" strokeWidth={2.5} dot={{ r: 4 }} />
-            <Line type="monotone" dataKey="lsd" name="LSD" stroke="#F4A300" strokeWidth={2.5} dot={{ r: 4 }} />
-            <Line type="monotone" dataKey="ppr" name="PPR" stroke="#1B4332" strokeWidth={2.5} dot={{ r: 4 }} />
-            <Line type="monotone" dataKey="avian" name="Avian Flu" stroke="#4A90D9" strokeWidth={2.5} dot={{ r: 4 }} />
-            <Line type="monotone" dataKey="swine" name="Swine Fever" stroke="#8B5CF6" strokeWidth={2.5} dot={{ r: 4 }} />
+            {multi.keys.map(k => (
+              <Line key={k.key} type="monotone" dataKey={k.key} name={k.label} stroke={k.color} strokeWidth={2.5} dot={{ r: 4 }} />
+            ))}
           </LineChart>
         </ResponsiveContainer>
         <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3">

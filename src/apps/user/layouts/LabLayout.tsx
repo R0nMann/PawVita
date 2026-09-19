@@ -12,8 +12,6 @@ export default function LabLayout() {
       navItems={navItems}
       title="Laboratory Portal"
       subtitle="Lab Technician"
-      userInitial="P"
-      userName="Priya Sharma"
     />
   );
 }

@@ -1,12 +1,14 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { useAuth } from "../../auth/AuthContext";
-import { PORTALS, PORTAL_LIST, roleFor } from "../../auth/portals";
+import { errorMessage } from "../../api/client";
+import { authApi } from "../../api/endpoints";
+import { useAuth, homeFor } from "../../auth/AuthContext";
+import { DEMO_ENABLED, DEMO_OTP } from "../../auth/demo";
+import { PORTALS, PORTAL_LIST } from "../../auth/portals";
 import type { PortalId } from "../../auth/portals";
 import AuthShell from "../components/AuthShell";
 import PortalChoice from "../components/PortalChoice";
 import DemoAccess from "../components/DemoAccess";
-import RolePicker from "../components/RolePicker";
 import { IconAlert, IconArrowRight, IconEye, IconEyeOff } from "../components/Icons";
 
 type Step = "portal" | "identify" | "otp";
@@ -14,7 +16,7 @@ type Step = "portal" | "identify" | "otp";
 export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { signIn } = useAuth();
+  const { completeSignIn } = useAuth();
 
   const requested = params.get("portal");
   const initialPortal: PortalId =
@@ -22,20 +24,19 @@ export default function Login() {
 
   const [portal, setPortal] = useState<PortalId>(initialPortal);
   const [step, setStep] = useState<Step>(requested ? "identify" : "portal");
-  const [roleId, setRoleId] = useState(PORTALS[initialPortal].roles[0].id);
   const [mobile, setMobile] = useState("");
   const [otp, setOtp] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const errorRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const formId = useId();
 
   const config = PORTALS[portal];
-  const role = useMemo(() => roleFor(portal, roleId), [portal, roleId]);
   const next = params.get("next");
 
   // Send focus to the message so it is announced and reachable (WCAG 2.2 error handling).
@@ -50,47 +51,74 @@ export default function Login() {
 
   function choosePortal(id: PortalId) {
     setPortal(id);
-    setRoleId(PORTALS[id].roles[0].id);
     setError(null);
   }
 
-  function complete(name: string, id: string) {
-    const created = signIn({ portal, role: roleId, name, identifier: id });
-    navigate(next || roleFor(created.portal, created.role).home, { replace: true });
+  /** Run a sign-in call with a busy state and a readable error. */
+  async function attempt(fn: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function handleIdentify(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
 
     if (config.authMethod === "otp") {
       if (!/^\d{10}$/.test(mobile)) {
         setError("Enter the 10-digit mobile number registered with PawVita.");
         return;
       }
-      setStep("otp");
+      void attempt(async () => {
+        await authApi.requestOtp(mobile);
+        setStep("otp");
+      });
       return;
     }
 
     if (identifier.trim().length < 3) {
-      setError("Enter your institution ID or official email address.");
+      setError("Enter your staff ID or official email address.");
       return;
     }
-    if (password.length < 4) {
+    if (!password) {
       setError("Enter your password to continue.");
       return;
     }
-    complete(role.label, identifier.trim());
+    void attempt(async () => {
+      const result = await authApi.login(identifier.trim(), password);
+      if (!result.user) {
+        throw new Error("This login has no PawVita account yet. Register first.");
+      }
+      const session = completeSignIn(result.session, result.user, portal);
+      navigate(next || homeFor(session), { replace: true });
+    });
   }
 
   function handleOtp(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     if (otp.length < 4) {
       setError("Enter the OTP sent to your mobile number.");
       return;
     }
-    complete("Ramesh Kumar", "+91 " + mobile);
+    void attempt(async () => {
+      const result = await authApi.verifyOtp(mobile, otp);
+      if (result.registrationRequired || !result.user) {
+        // Phone verified but no account yet: finish on the registration form.
+        navigate("/register?portal=user", {
+          replace: true,
+          state: { verified: { phone: mobile, tokens: result.session } },
+        });
+        return;
+      }
+      const session = completeSignIn(result.session, result.user, portal);
+      navigate(next || homeFor(session), { replace: true });
+    });
   }
 
   const errorBanner = error ? (
@@ -106,6 +134,9 @@ export default function Login() {
       <p className="text-sm text-[#991B1B]">{error}</p>
     </div>
   ) : null;
+
+  const submitClass =
+    "w-full inline-flex items-center justify-center gap-2 min-h-[48px] rounded-xl bg-[#1B4332] text-white font-bold font-display hover:bg-[#2D6A4F] transition-colors focus-ring disabled:opacity-60";
 
   return (
     <AuthShell
@@ -123,11 +154,7 @@ export default function Login() {
       {step === "portal" ? (
         <div>
           <PortalChoice value={portal} onChange={choosePortal} name={formId + "-portal"} />
-          <button
-            type="button"
-            onClick={() => setStep("identify")}
-            className="w-full mt-6 inline-flex items-center justify-center gap-2 min-h-[48px] rounded-xl bg-[#1B4332] text-white font-bold font-display hover:bg-[#2D6A4F] transition-colors focus-ring"
-          >
+          <button type="button" onClick={() => setStep("identify")} className={submitClass + " mt-6"}>
             Continue as {config.name} <IconArrowRight />
           </button>
           <p className="text-center text-sm text-gray-500 mt-5">
@@ -165,16 +192,6 @@ export default function Login() {
 
           {step === "identify" ? (
             <form onSubmit={handleIdentify} className="mt-5 space-y-5" noValidate>
-              <RolePicker
-                portal={portal}
-                value={roleId}
-                onChange={(v) => {
-                  setRoleId(v);
-                  setError(null);
-                }}
-                id={formId + "-role"}
-              />
-
               {config.authMethod === "otp" ? (
                 <div>
                   <label
@@ -201,7 +218,7 @@ export default function Login() {
                     />
                   </div>
                   <p id={formId + "-mobile-help"} className="text-xs text-gray-500 mt-2">
-                    We will send a one-time password to this number.
+                    We will send a one-time password to this number. Your role comes from your account.
                   </p>
                 </div>
               ) : (
@@ -211,7 +228,7 @@ export default function Login() {
                       htmlFor={formId + "-id"}
                       className="block text-sm font-semibold text-gray-700 mb-2"
                     >
-                      Institution ID or email
+                      Staff ID or email
                     </label>
                     <input
                       id={formId + "-id"}
@@ -255,11 +272,9 @@ export default function Login() {
                 </>
               )}
 
-              <button
-                type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 min-h-[48px] rounded-xl bg-[#1B4332] text-white font-bold font-display hover:bg-[#2D6A4F] transition-colors focus-ring"
-              >
-                {config.authMethod === "otp" ? "Send OTP" : "Sign in"} <IconArrowRight />
+              <button type="submit" disabled={busy} className={submitClass}>
+                {busy ? "Please wait…" : config.authMethod === "otp" ? "Send OTP" : "Sign in"}
+                {!busy && <IconArrowRight />}
               </button>
             </form>
           ) : (
@@ -293,14 +308,21 @@ export default function Login() {
                   className="w-full min-h-[52px] border border-gray-200 rounded-xl px-4 text-center text-2xl tracking-[0.4em] bg-[#FAF9F6] focus-ring"
                 />
                 <p id={formId + "-otp-help"} className="text-xs text-gray-500 mt-2 text-center">
-                  Demo build — any 4 to 6 digits will verify.
+                  {DEMO_ENABLED
+                    ? `Demo build — the demo OTP is ${DEMO_OTP}.`
+                    : "The code expires in a few minutes."}{" "}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void attempt(async () => void (await authApi.requestOtp(mobile)))}
+                    className="text-[#1B4332] font-semibold underline underline-offset-2"
+                  >
+                    Resend
+                  </button>
                 </p>
               </div>
-              <button
-                type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 min-h-[48px] rounded-xl bg-[#1B4332] text-white font-bold font-display hover:bg-[#2D6A4F] transition-colors focus-ring"
-              >
-                Verify and continue <IconArrowRight />
+              <button type="submit" disabled={busy} className={submitClass}>
+                {busy ? "Verifying…" : "Verify and continue"} {!busy && <IconArrowRight />}
               </button>
             </form>
           )}

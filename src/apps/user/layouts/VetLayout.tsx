@@ -13,8 +13,6 @@ export default function VetLayout() {
       navItems={navItems}
       title="Veterinary Portal"
       subtitle="Field Officer"
-      userInitial="M"
-      userName="Dr. Meera Patel"
     />
   );
 }

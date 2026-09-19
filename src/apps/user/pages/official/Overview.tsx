@@ -1,18 +1,37 @@
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { diseaseFrequencyData, riskForecastData, vaccinationCoverageData, regionComparisonData, outbreakClusters } from '../../data/mockData';
+import { Link } from 'react-router';
+import { riskForecastData, outbreakClusters } from '../../data/aiPreview';
 import StatCard from '../../components/StatCard';
 import OutbreakTicker from '../../components/OutbreakTicker';
-import { Link } from 'react-router';
+import { useOverview } from '../../../../api/queries';
+import { formatDateTime } from '../../../../lib/format';
+import { useDiseaseTrend, useRegionComparison } from '../../../../shared/analytics/charts';
 
 export default function Overview() {
+  const overviewQ = useOverview();
+  const trend = useDiseaseTrend({ months: 7 });
+  const regions = useRegionComparison();
+  const o = overviewQ.data;
+  const v = o?.vaccination;
+  const never = v ? Math.max(v.animals - v.upToDate - v.overdue, 0) : 0;
+  const vaccinationData = v && v.animals
+    ? [
+        { name: 'Up to date', value: Math.round((v.upToDate / v.animals) * 100), color: '#1B4332' },
+        { name: 'Never vaccinated', value: Math.round((never / v.animals) * 100), color: '#FFD166' },
+        { name: 'Overdue', value: Math.round((v.overdue / v.animals) * 100), color: '#E63946' },
+      ]
+    : [];
+
   return (
     <div>
       <OutbreakTicker />
       <div className="p-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold font-display text-[#1B4332]">District Overview — Anand, Gujarat</h2>
-            <p className="text-gray-500">Updated: January 9, 2025 09:30 IST</p>
+            <h2 className="text-2xl font-bold font-display text-[#1B4332]">Overview — {o?.scope?.name ?? 'All India'}</h2>
+            <p className="text-gray-500">
+              Updated: {overviewQ.dataUpdatedAt ? formatDateTime(new Date(overviewQ.dataUpdatedAt)) : '…'} · last 30 days
+            </p>
           </div>
           <Link to="/user/official/reports" className="bg-[#1B4332] text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#2D6A4F] transition-colors font-display">
             Generate Report ↓
@@ -21,10 +40,10 @@ export default function Overview() {
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-          <StatCard label="Active Outbreaks" value={5} icon="🔥" gradient="gradient-card-alert" trend={{ value: 2, label: 'vs last week' }} />
-          <StatCard label="Active Cases" value={1847} icon="📋" gradient="gradient-card-amber" delay={100} trend={{ value: -8, label: 'vs last week' }} />
-          <StatCard label="Animals Vaccinated" value={3240000} icon="💉" gradient="gradient-card-green" delay={200} trend={{ value: 12, label: 'this month' }} />
-          <StatCard label="Vaccination Coverage" value={78} suffix="%" icon="🛡️" gradient="gradient-card-sky" delay={300} />
+          <StatCard label="Notifiable Cases" value={o?.cases.openNotifiable ?? 0} icon="🔥" gradient="gradient-card-alert" />
+          <StatCard label="Active Cases" value={o?.cases.open ?? 0} icon="📋" gradient="gradient-card-amber" delay={100} />
+          <StatCard label="Animals Vaccinated" value={v?.upToDate ?? 0} icon="💉" gradient="gradient-card-green" delay={200} />
+          <StatCard label="Vaccination Coverage" value={Math.round(v?.coveragePercent ?? 0)} suffix="%" icon="🛡️" gradient="gradient-card-sky" delay={300} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
@@ -35,18 +54,18 @@ export default function Overview() {
               <span className="text-xs text-gray-400">Last 7 months</span>
             </div>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={diseaseFrequencyData}>
+              <LineChart data={trend.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
                 <Legend />
-                <Line type="monotone" dataKey="FMD" stroke="#E63946" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="LSD" stroke="#4A90D9" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="HS" stroke="#F4A300" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="BQ" stroke="#1B4332" strokeWidth={2} dot={false} />
+                {trend.keys.map(k => (
+                  <Line key={k.key} type="monotone" dataKey={k.key} name={k.label} stroke={k.color} strokeWidth={2.5} dot={false} />
+                ))}
               </LineChart>
             </ResponsiveContainer>
+            {trend.query.isSuccess && trend.keys.length === 0 && <p className="text-xs text-gray-400 text-center -mt-2">No cases reported in this period.</p>}
           </div>
 
           {/* 7-day Risk Forecast */}
@@ -62,7 +81,7 @@ export default function Overview() {
                 <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} domain={[0, 100]} />
                 <Tooltip
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                  formatter={(v) => [`${v}%`, 'Risk Score']}
+                  formatter={(value) => [`${value}%`, 'Risk Score']}
                 />
                 <Bar dataKey="risk" radius={[6, 6, 0, 0]}>
                   {riskForecastData.map((entry, index) => (
@@ -82,27 +101,31 @@ export default function Overview() {
           {/* Vaccination Donut */}
           <div className="bg-white rounded-2xl p-5 shadow-card border border-gray-100">
             <h3 className="font-bold font-display text-[#1B4332] mb-5">Vaccination Status</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={vaccinationCoverageData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
-                  {vaccinationCoverageData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Legend iconType="circle" iconSize={8} />
-                <Tooltip formatter={(v) => [`${v}%`]} />
-              </PieChart>
-            </ResponsiveContainer>
+            {vaccinationData.length ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={vaccinationData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+                    {vaccinationData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Legend iconType="circle" iconSize={8} />
+                  <Tooltip formatter={(value) => [`${value}%`]} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-400 py-16 text-center">{overviewQ.isPending ? 'Loading…' : 'No animals registered in this area yet.'}</p>
+            )}
           </div>
 
           {/* Region Comparison */}
           <div className="bg-white rounded-2xl p-5 shadow-card border border-gray-100 col-span-1 lg:col-span-2">
             <h3 className="font-bold font-display text-[#1B4332] mb-5">Regional Disease Load vs Vaccination</h3>
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={regionComparisonData} layout="vertical">
+              <BarChart data={regions.rows.slice(0, 8)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="region" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} width={60} />
+                <YAxis type="category" dataKey="region" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
                 <Legend />
                 <Bar dataKey="cases" name="Cases" fill="#E63946" radius={[0, 4, 4, 0]} barSize={8} />

@@ -3,21 +3,25 @@ import { Navigate } from "react-router";
 import { useAuth } from "../../auth/AuthContext";
 
 /**
- * Clears the session, then bounces to the sign-in screen.
+ * Ends the session (on the server too), then bounces to the sign-in screen.
  *
  * A route rather than an inline handler so every "log out" control in both
- * portals — which used to navigate to /login and leave the session intact — ends
- * up in the same place.
+ * portals ends up in the same place.
  */
 export default function Logout() {
   const { signOut } = useAuth();
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    signOut();
-    // Also drop the portal tag so the next screen renders with public styling.
-    delete document.documentElement.dataset.portal;
-    setDone(true);
+    let cancelled = false;
+    void signOut().finally(() => {
+      // Also drop the portal tag so the next screen renders with public styling.
+      delete document.documentElement.dataset.portal;
+      if (!cancelled) setDone(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [signOut]);
 
   if (!done) {

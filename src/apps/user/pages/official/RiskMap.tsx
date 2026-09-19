@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { mapMarkers, DISEASES, SPECIES } from '../../data/mockData';
+import { mapMarkers, DISEASES, SPECIES } from '../../data/aiPreview';
 
 // Leaflet map rendered as an interactive SVG simulation for demo
 // (Actual Leaflet integration requires DOM manipulation outside React's flow)

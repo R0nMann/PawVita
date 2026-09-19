@@ -11,13 +11,16 @@ export default function RolePicker({
   value,
   onChange,
   id,
+  selfServiceOnly = false,
 }: {
   portal: PortalId;
   value: string;
   onChange: (value: string) => void;
   id: string;
+  /** Hide roles people cannot register for themselves (administrators). */
+  selfServiceOnly?: boolean;
 }) {
-  const roles = PORTALS[portal].roles;
+  const roles = PORTALS[portal].roles.filter((r) => !selfServiceOnly || r.selfService);
   const role = roleFor(portal, value);
 
   return (
@@ -40,6 +43,7 @@ export default function RolePicker({
       </select>
       <p id={id + "-desc"} className="text-xs text-gray-500 mt-2">
         {role.desc}
+        {role.backendRole !== "farmer" && " · An administrator approves new staff accounts."}
       </p>
     </div>
   );

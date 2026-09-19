@@ -8,7 +8,14 @@
  *
  * Every route inside a portal is namespaced under its `basePath`, which is how
  * the two originally-separate applications now coexist in one router.
+ *
+ * The API has one role set for both portals; each portal role below names the
+ * account role it presents (`backendRole`). A vet who signs in through the
+ * Livestock Owner portal gets the field vet screens, and through the hospital
+ * portal the doctor screens — same account, same cases.
  */
+import type { BackendRole } from "../api/types";
+
 export type PortalId = "user" | "hospital";
 
 export interface PortalRole {
@@ -20,6 +27,10 @@ export interface PortalRole {
   desc: string;
   /** Landing route after a successful sign-in. */
   home: string;
+  /** The account role in the API that this portal role presents. */
+  backendRole: BackendRole;
+  /** Offered on the registration form (administrators are created by other administrators). */
+  selfService: boolean;
 }
 
 export interface Portal {
@@ -56,6 +67,17 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Farmer",
         desc: "Report disease, track animals, receive alerts",
         home: "/user/farmer/home",
+        backendRole: "farmer",
+        selfService: true,
+      },
+      {
+        id: "field_worker",
+        label: "Field Worker / Pashu Sakhi",
+        short: "Field Worker",
+        desc: "Register herds and report cases for farmers in your area",
+        home: "/user/farmer/home",
+        backendRole: "field_worker",
+        selfService: true,
       },
       {
         id: "vet",
@@ -63,6 +85,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Veterinarian",
         desc: "Manage cases, log treatments, plan field visits",
         home: "/user/vet/dashboard",
+        backendRole: "vet",
+        selfService: true,
       },
       {
         id: "official",
@@ -70,6 +94,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Official",
         desc: "Monitor outbreaks, generate policy reports",
         home: "/user/official/overview",
+        backendRole: "official",
+        selfService: true,
       },
       {
         id: "lab",
@@ -77,6 +103,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Lab Tech",
         desc: "Process samples, enter diagnostic results",
         home: "/user/lab/queue",
+        backendRole: "lab_tech",
+        selfService: true,
       },
       {
         id: "admin",
@@ -84,6 +112,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Admin",
         desc: "Manage users, regions and platform health",
         home: "/user/admin/users",
+        backendRole: "admin",
+        selfService: false,
       },
     ],
     highlights: [
@@ -108,6 +138,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Ward",
         desc: "Ward managers and animal care staff",
         home: "/hospital/ward/home",
+        backendRole: "ward_staff",
+        selfService: true,
       },
       {
         id: "doctor",
@@ -115,6 +147,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Veterinarian",
         desc: "Field and hospital veterinary officers",
         home: "/hospital/doctor/dashboard",
+        backendRole: "vet",
+        selfService: true,
       },
       {
         id: "official",
@@ -122,6 +156,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Official",
         desc: "District and state level directors",
         home: "/hospital/official/overview",
+        backendRole: "official",
+        selfService: true,
       },
       {
         id: "lab",
@@ -129,6 +165,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Lab Tech",
         desc: "Diagnostic laboratory staff",
         home: "/hospital/lab/queue",
+        backendRole: "lab_tech",
+        selfService: true,
       },
       {
         id: "admin",
@@ -136,6 +174,8 @@ export const PORTALS: Record<PortalId, Portal> = {
         short: "Admin",
         desc: "Platform administrators",
         home: "/hospital/admin/users",
+        backendRole: "admin",
+        selfService: false,
       },
     ],
     highlights: [
@@ -158,4 +198,39 @@ export function portalForPath(pathname: string): PortalId | null {
 export function roleFor(portal: PortalId, roleId: string): PortalRole {
   const found = PORTALS[portal].roles.find((r) => r.id === roleId);
   return found ?? PORTALS[portal].roles[0];
+}
+
+/** The area segment of a role's screens: "/user/vet/dashboard" → "vet". */
+function areaOf(role: PortalRole): string {
+  return role.home.split("/")[2] ?? "";
+}
+
+/** Shared pages every signed-in user of a portal may open. */
+const UTILITY_AREAS = ["notifications", "settings", "help-support"];
+
+/**
+ * Whether a role may open a path inside its portal. Each role has its own
+ * area; vets can also work the lab queue, and administrators can go anywhere.
+ */
+export function canOpen(portal: PortalId, roleId: string, pathname: string): boolean {
+  const area = pathname.split("/")[2];
+  if (!area || UTILITY_AREAS.includes(area)) return true;
+  const role = roleFor(portal, roleId);
+  if (role.backendRole === "admin") return true;
+  const allowed = [areaOf(role), ...(role.backendRole === "vet" ? ["lab"] : [])];
+  return allowed.includes(area);
+}
+
+/**
+ * Where an account lands. The portal chosen at sign-in wins when it has a
+ * screen for the account's role; otherwise the other portal does (ward staff
+ * only exist in the hospital portal, farmers only in the owner portal).
+ */
+export function portalRoleFor(backendRole: BackendRole, preferred: PortalId): { portal: PortalId; role: PortalRole } {
+  const order: PortalId[] = preferred === "user" ? ["user", "hospital"] : ["hospital", "user"];
+  for (const portal of order) {
+    const role = PORTALS[portal].roles.find((r) => r.backendRole === backendRole);
+    if (role) return { portal, role };
+  }
+  return { portal: preferred, role: PORTALS[preferred].roles[0] };
 }

@@ -14,8 +14,6 @@ export default function AdminLayout() {
       navItems={navItems}
       title="Admin Console"
       subtitle="Super Admin"
-      userInitial="S"
-      userName="Super Admin"
     />
   );
 }

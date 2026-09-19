@@ -1,26 +1,31 @@
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis } from 'recharts';
-import { diseaseFrequencyData, regionComparisonData, riskForecastData } from '../../data/mockData';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
 import { useState } from 'react';
-
-const seasonalData = [
-  { month: 'Jan', FMD: 71, LSD: 15, HS: 22, temp: 18 },
-  { month: 'Feb', FMD: 65, LSD: 12, HS: 18, temp: 22 },
-  { month: 'Mar', FMD: 48, LSD: 10, HS: 14, temp: 28 },
-  { month: 'Apr', FMD: 35, LSD: 8, HS: 10, temp: 33 },
-  { month: 'May', FMD: 28, LSD: 6, HS: 8, temp: 37 },
-  { month: 'Jun', FMD: 31, LSD: 14, HS: 12, temp: 35 },
-  { month: 'Jul', FMD: 42, LSD: 18, HS: 24, temp: 30 },
-  { month: 'Aug', FMD: 56, LSD: 22, HS: 19, temp: 29 },
-  { month: 'Sep', FMD: 63, LSD: 31, HS: 21, temp: 28 },
-  { month: 'Oct', FMD: 48, LSD: 28, HS: 16, temp: 25 },
-  { month: 'Nov', FMD: 38, LSD: 24, HS: 14, temp: 20 },
-  { month: 'Dec', FMD: 52, LSD: 20, HS: 18, temp: 16 },
-];
+import { riskForecastData } from '../../data/aiPreview';
+import { useCatalog } from '../../../../api/queries';
+import { diseaseName } from '../../../../lib/format';
+import { useDiseaseTrend, useRegionComparison } from '../../../../shared/analytics/charts';
 
 const TABS = ['Seasonal Trends', 'Regional Comparison', '7-Day Forecast'];
 
 export default function Analytics() {
   const [tab, setTab] = useState(0);
+  const catalog = useCatalog();
+  const seasonal = useDiseaseTrend({ months: 12, top: 3 });
+  const regions = useRegionComparison();
+
+  const peak = seasonal.data.reduce<{ month: string; total: number } | null>(
+    (best, b) => (!best || b.total > best.total ? { month: b.month, total: b.total } : best),
+    null,
+  );
+  const [topCode, topCount] = [...seasonal.totals.entries()].filter(([k]) => k !== 'undiagnosed').sort((a, b) => b[1] - a[1])[0] ?? [];
+  const atRisk = regions.rows.filter(r => r.highRiskOpen > 0);
+
+  const cards = [
+    { label: 'Peak Disease Month', value: peak && peak.total > 0 ? peak.month : '—', icon: '📅', sub: peak ? `${peak.total} cases in the last 12 months` : 'No data yet' },
+    { label: 'Top Disease', value: topCode ? topCode.toUpperCase() : '—', icon: '🦷', sub: topCode ? `${topCount} cases · ${diseaseName(topCode, catalog.data)}` : 'No diagnosed cases' },
+    { label: `At-Risk ${regions.level ? regions.level[0]!.toUpperCase() + regions.level.slice(1) + 's' : 'Areas'}`, value: String(atRisk.length), icon: '📍', sub: 'With open high-risk cases' },
+    { label: 'Forecast Accuracy', value: '89%', icon: '🎯', sub: 'AI model validation' },
+  ];
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -31,12 +36,7 @@ export default function Analytics() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-7">
-        {[
-          { label: 'Peak Disease Month', value: 'September', icon: '📅', sub: 'Historically highest cases' },
-          { label: 'Top Disease 2025', value: 'FMD', icon: '🦷', sub: '71 cases in Jan alone' },
-          { label: 'At-Risk Districts', value: '14', icon: '📍', sub: 'Across 4 states' },
-          { label: 'Forecast Accuracy', value: '89%', icon: '🎯', sub: 'AI model validation' },
-        ].map(c => (
+        {cards.map(c => (
           <div key={c.label} className="bg-white rounded-2xl p-4 shadow-card border border-gray-100">
             <div className="text-3xl mb-2">{c.icon}</div>
             <p className="text-2xl font-bold font-display text-[#1B4332]">{c.value}</p>
@@ -47,10 +47,12 @@ export default function Analytics() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 w-fit" role="tablist">
         {TABS.map((t, i) => (
           <button
             key={i}
+            role="tab"
+            aria-selected={tab === i}
             onClick={() => setTab(i)}
             className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all font-display ${tab === i ? 'bg-white shadow-sm text-[#1B4332]' : 'text-gray-500 hover:text-gray-700'}`}
           >
@@ -62,25 +64,25 @@ export default function Analytics() {
       {tab === 0 && (
         <div className="space-y-5">
           <div className="bg-white rounded-2xl p-5 shadow-card border border-gray-100">
-            <h3 className="font-bold font-display text-[#1B4332] mb-5">Seasonal Disease Pattern (Full Year)</h3>
+            <h3 className="font-bold font-display text-[#1B4332] mb-5">Seasonal Disease Pattern (Last 12 Months)</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={seasonalData}>
+              <AreaChart data={seasonal.data}>
                 <defs>
-                  {[['fmd', '#E63946'], ['lsd', '#4A90D9'], ['hs', '#F4A300']].map(([id, color]) => (
-                    <linearGradient key={id} id={`grad_${id}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={color} stopOpacity={0.2} />
-                      <stop offset="95%" stopColor={color} stopOpacity={0} />
+                  {seasonal.keys.map(k => (
+                    <linearGradient key={k.key} id={`grad_${k.key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={k.color} stopOpacity={0.2} />
+                      <stop offset="95%" stopColor={k.color} stopOpacity={0} />
                     </linearGradient>
                   ))}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
                 <Legend />
-                <Area type="monotone" dataKey="FMD" stroke="#E63946" fill="url(#grad_fmd)" strokeWidth={2.5} />
-                <Area type="monotone" dataKey="LSD" stroke="#4A90D9" fill="url(#grad_lsd)" strokeWidth={2.5} />
-                <Area type="monotone" dataKey="HS" stroke="#F4A300" fill="url(#grad_hs)" strokeWidth={2.5} />
+                {seasonal.keys.map(k => (
+                  <Area key={k.key} type="monotone" dataKey={k.key} name={k.label} stroke={k.color} fill={`url(#grad_${k.key})`} strokeWidth={2.5} />
+                ))}
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -89,18 +91,22 @@ export default function Analytics() {
 
       {tab === 1 && (
         <div className="bg-white rounded-2xl p-5 shadow-card border border-gray-100">
-          <h3 className="font-bold font-display text-[#1B4332] mb-5">State-wise Disease Load vs Vaccination Coverage</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={regionComparisonData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="region" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
-              <Legend />
-              <Bar dataKey="cases" name="Active Cases" fill="#E63946" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="vaccinated" name="Vaccination %" fill="#1B4332" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="font-bold font-display text-[#1B4332] mb-5">Disease Load vs Vaccination Coverage by {regions.level ?? 'region'}</h3>
+          {regions.rows.length === 0 && !regions.isPending ? (
+            <p className="text-sm text-gray-400 py-16 text-center">No data for your area yet.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={regions.rows}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="region" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+                <Legend />
+                <Bar dataKey="open" name="Active Cases" fill="#E63946" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="vaccinated" name="Vaccination %" fill="#1B4332" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       )}
 
@@ -117,7 +123,7 @@ export default function Analytics() {
               <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} domain={[0, 100]} />
               <Tooltip
                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
-                formatter={(v, name) => [name === 'risk' ? `${v}% risk` : `${v}°C`, name === 'risk' ? 'Outbreak Risk' : 'Temperature']}
+                formatter={(value, name) => [name === 'risk' ? `${value}% risk` : `${value}°C`, name === 'risk' ? 'Outbreak Risk' : 'Temperature']}
               />
               <Legend />
               <Line type="monotone" dataKey="risk" name="risk" stroke="#E63946" strokeWidth={3} dot={{ fill: '#E63946', r: 5 }} />

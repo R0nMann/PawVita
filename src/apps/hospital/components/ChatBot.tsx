@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CHATBOT_RESPONSES } from "../data/mockData";
+import { CHATBOT_RESPONSES } from "../data/aiPreview";
 
 export default function ChatBot() {
   const [open, setOpen] = useState(false);

@@ -2,14 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PORTAL_LIST } from "../../auth/portals";
-import {
-  ACTIVE_CLUSTERS,
-  DISEASE_TREND,
-  JOURNEY,
-  NETWORK_STATS,
-  OUTCOMES,
-  TESTIMONIALS,
-} from "../data/landing";
+import { usePublicStats, usePublicTrends } from "../../api/queries";
+import { ACTIVE_CLUSTERS, JOURNEY, OUTCOMES, TESTIMONIALS } from "../data/landing";
 import {
   IconArrowRight,
   IconCheck,
@@ -38,7 +32,30 @@ export default function Landing() {
 
 /* ---------------------------------------------------------------- hero ---- */
 
+const TREND_COLORS = ["#F4A300", "#6AAEE8", "#8FD694"];
+const monthLabel = new Intl.DateTimeFormat("en-IN", { month: "short" });
+
+/** Monthly national case counts from the API, shaped for the hero chart. */
+function useTrendChart() {
+  const trends = usePublicTrends();
+  const keys = (trends.data?.keys ?? []).filter((k) => k !== "other").slice(0, 3);
+  const data = (trends.data?.buckets ?? []).map((b) => ({
+    month: monthLabel.format(new Date(b.start)),
+    ...Object.fromEntries(keys.map((k) => [k.toUpperCase(), b.counts[k] ?? 0])),
+  }));
+  const summary = keys.length
+    ? keys
+        .map((k) => {
+          const counts = data.map((d) => Number((d as Record<string, unknown>)[k.toUpperCase()] ?? 0));
+          return `${k.toUpperCase()}: ${counts.reduce((a, b) => a + b, 0)} cases over the last ${counts.length} months, ${counts.at(-1)} this month.`;
+        })
+        .join(" ")
+    : "No disease reports in the last 7 months.";
+  return { keys: keys.map((k) => k.toUpperCase()), data, summary, loaded: trends.isSuccess };
+}
+
 function Hero() {
+  const trend = useTrendChart();
   return (
     <section className="gradient-hero relative overflow-hidden">
       <div className="absolute inset-0 opacity-10" aria-hidden="true">
@@ -110,18 +127,21 @@ function Hero() {
             </span>
           </div>
 
-          <div aria-hidden="true">
+          <div className="relative" aria-hidden="true">
+            {trend.loaded && trend.keys.length === 0 && (
+              <p className="absolute inset-0 grid place-items-center text-white/60 text-xs">
+                No disease reports in the last 7 months.
+              </p>
+            )}
             <ResponsiveContainer width="100%" height={190}>
-              <AreaChart data={DISEASE_TREND} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+              <AreaChart data={trend.data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
                 <defs>
-                  <linearGradient id="landing-fmd" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F4A300" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#F4A300" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="landing-lsd" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6AAEE8" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#6AAEE8" stopOpacity={0} />
-                  </linearGradient>
+                  {TREND_COLORS.map((color, i) => (
+                    <linearGradient key={color} id={`landing-trend-${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={color} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={color} stopOpacity={0} />
+                    </linearGradient>
+                  ))}
                 </defs>
                 <XAxis
                   dataKey="month"
@@ -139,29 +159,22 @@ function Hero() {
                     fontSize: 12,
                   }}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="FMD"
-                  stroke="#F4A300"
-                  fill="url(#landing-fmd)"
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="LSD"
-                  stroke="#6AAEE8"
-                  fill="url(#landing-lsd)"
-                  strokeWidth={2}
-                />
+                {trend.keys.map((key, i) => (
+                  <Area
+                    key={key}
+                    type="monotone"
+                    dataKey={key}
+                    stroke={TREND_COLORS[i]}
+                    fill={`url(#landing-trend-${i})`}
+                    strokeWidth={2}
+                  />
+                ))}
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
           {/* Text alternative — a chart alone is not reachable by screen readers. */}
-          <p className="sr-only">
-            Foot-and-mouth disease cases rose from 42 in July to 71 in January, peaking after a dip in
-            November. Lumpy skin disease fell from a September high of 31 to 15 in January.
-          </p>
+          <p className="sr-only">{trend.summary}</p>
 
           <ul className="grid grid-cols-3 gap-2.5 mt-4">
             {ACTIVE_CLUSTERS.map((cluster) => (
@@ -197,7 +210,10 @@ function AnimatedStat({ value, suffix = "", label }: { value: number; suffix?: s
   const ref = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShown(value);
+      return;
+    }
 
     const node = ref.current;
     if (!node) return;
@@ -248,15 +264,16 @@ function AnimatedStat({ value, suffix = "", label }: { value: number; suffix?: s
 }
 
 function NetworkStats() {
+  const { data } = usePublicStats();
   return (
-    <section className="bg-[#1B4332] py-14" aria-label="Network at a glance">
+    <section className="bg-[#1B4332] py-14" aria-label="Network at a glance" aria-busy={!data}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
-        <AnimatedStat value={NETWORK_STATS.registeredFarmers} label="Registered farmers" />
-        <AnimatedStat value={NETWORK_STATS.activeCases} label="Active cases" />
-        <AnimatedStat value={NETWORK_STATS.outbreaksControlled} label="Outbreaks controlled" />
-        <AnimatedStat value={NETWORK_STATS.vaccinationCoverage} suffix="%" label="Vaccination coverage" />
-        <AnimatedStat value={NETWORK_STATS.animalsTracked} label="Animals tracked" />
-        <AnimatedStat value={NETWORK_STATS.vetOfficers} label="Vet officers" />
+        <AnimatedStat value={data?.registeredFarmers ?? 0} label="Registered farmers" />
+        <AnimatedStat value={data?.activeCases ?? 0} label="Active cases" />
+        <AnimatedStat value={data?.casesResolved ?? 0} label="Cases resolved" />
+        <AnimatedStat value={Math.round(data?.vaccinationCoveragePercent ?? 0)} suffix="%" label="Vaccination coverage" />
+        <AnimatedStat value={data?.animalsMonitored ?? 0} label="Animals tracked" />
+        <AnimatedStat value={data?.vetOfficers ?? 0} label="Vet officers" />
       </div>
     </section>
   );

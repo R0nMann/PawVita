@@ -1,16 +1,24 @@
-import { Link } from "react-router";
-import { NOTIFICATIONS } from "../data/mockData";
-import AccountMenu from "../../../shared/components/AccountMenu";
+import { Link, useNavigate } from "react-router";
 import { useState } from "react";
+import AccountMenu from "../../../shared/components/AccountMenu";
+import { notificationApi } from "../../../api/endpoints";
+import { useApiMutation, useNotifications } from "../../../api/queries";
+import { useSession } from "../../../auth/AuthContext";
+import { notificationLink, NOTIFICATION_ICON } from "../../../lib/links";
+import { timeAgo } from "../../../lib/format";
 
 interface HeaderProps {
+  /** Badge text: Hospital, Doctor, Official, Lab or Admin. */
   role?: string;
-  user?: string;
 }
 
-export default function Header({ role = "Hospital", user = "Ward Manager" }: HeaderProps) {
+export default function Header({ role = "Hospital" }: HeaderProps) {
+  const session = useSession();
+  const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
-  const unread = NOTIFICATIONS.filter(n => !n.read).length;
+  const latest = useNotifications({ limit: 4 });
+  const read = useApiMutation((id: string) => notificationApi.read(id), [["notifications"]]);
+  const unread = latest.data?.unreadCount ?? 0;
 
   const ROLE_COLORS: Record<string, string> = {
     Hospital: "bg-[#4A90D9]",
@@ -34,12 +42,13 @@ export default function Header({ role = "Hospital", user = "Ward Manager" }: Hea
           <button
             onClick={() => setNotifOpen(!notifOpen)}
             className="relative w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
-            aria-label="Notifications"
+            aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
+            aria-expanded={notifOpen}
           >
             🔔
             {unread > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#E63946] text-white text-xs rounded-full flex items-center justify-center font-bold">
-                {unread}
+                {unread > 9 ? "9+" : unread}
               </span>
             )}
           </button>
@@ -49,17 +58,28 @@ export default function Header({ role = "Hospital", user = "Ward Manager" }: Hea
                 <span className="font-semibold font-display text-sm">Notifications</span>
                 <Link to="/hospital/notifications" className="text-xs text-[#4A90D9] hover:underline" onClick={() => setNotifOpen(false)}>View all</Link>
               </div>
-              {NOTIFICATIONS.slice(0, 4).map(n => (
-                <div key={n.id} className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer ${!n.read ? "bg-blue-50/30" : ""}`}>
+              {latest.data?.items.length === 0 && <p className="px-4 py-6 text-sm text-gray-500 text-center">You're all caught up.</p>}
+              {(latest.data?.items ?? []).map(n => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => {
+                    if (!n.readAt) read.mutate(n.id);
+                    setNotifOpen(false);
+                    const link = notificationLink(session, n);
+                    if (link) navigate(link);
+                  }}
+                  className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 ${!n.readAt ? "bg-blue-50/30" : ""}`}
+                >
                   <div className="flex items-start gap-3">
-                    <span className="text-lg mt-0.5">{n.type === "alert" ? "🔴" : n.type === "warning" ? "🟡" : n.type === "success" ? "✅" : "ℹ️"}</span>
+                    <span className="text-lg mt-0.5">{NOTIFICATION_ICON[n.type] ?? "ℹ️"}</span>
                     <div>
                       <p className="text-sm font-medium text-gray-800 font-display">{n.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{n.body}</p>
-                      <p className="text-xs text-gray-400 mt-1">{n.time}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
+                      <p className="text-xs text-gray-400 mt-1">{timeAgo(n.createdAt)}</p>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -67,7 +87,7 @@ export default function Header({ role = "Hospital", user = "Ward Manager" }: Hea
         <Link to="/hospital/settings" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors" aria-label="Settings">
           ⚙️
         </Link>
-        <AccountMenu name={user} subtitle={role} portal="hospital" variant="light" />
+        <AccountMenu name={session.name} subtitle={[role, session.account.organization?.name].filter(Boolean).join(" · ")} portal="hospital" variant="light" />
       </div>
     </header>
   );

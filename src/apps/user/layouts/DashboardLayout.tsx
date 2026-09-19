@@ -1,7 +1,8 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { useState } from 'react';
 import ChatbotWidget from '../components/ChatbotWidget';
-import { notifications } from '../data/mockData';
+import { useUnreadCount } from '../../../api/queries';
+import { useSession } from '../../../auth/AuthContext';
 
 interface NavItem { to: string; icon: string; label: string; }
 
@@ -10,8 +11,6 @@ interface DashboardLayoutProps {
   navItems: NavItem[];
   title: string;
   subtitle: string;
-  userInitial: string;
-  userName: string;
 }
 
 const roleColors: Record<string, string> = {
@@ -28,11 +27,14 @@ const roleAccents: Record<string, string> = {
   admin: '#E63946',
 };
 
-export default function DashboardLayout({ role, navItems, title, subtitle, userInitial, userName }: DashboardLayoutProps) {
+export default function DashboardLayout({ role, navItems, title, subtitle }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
-  const unread = notifications.filter(n => !n.read).length;
+  const session = useSession();
+  const unread = useUnreadCount();
+  const userName = session.name;
+  const userInitial = userName.replace(/^Dr\.?\s+/, '').charAt(0).toUpperCase();
   const gradient = roleColors[role];
   const accent = roleAccents[role];
 

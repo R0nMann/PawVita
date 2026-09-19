@@ -15,19 +15,23 @@ export default function StatCard({ label, value, suffix = '', prefix = '', gradi
   const [displayed, setDisplayed] = useState(0);
 
   useEffect(() => {
+    // Both timers are cleared on change: the value arrives from the API after first render.
+    let interval: ReturnType<typeof setInterval> | undefined;
     const timer = setTimeout(() => {
       const duration = 1200;
       const steps = 40;
       const increment = value / steps;
       let current = 0;
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         current += increment;
         if (current >= value) { setDisplayed(value); clearInterval(interval); }
         else setDisplayed(Math.floor(current));
       }, duration / steps);
-      return () => clearInterval(interval);
     }, delay);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [value, delay]);
 
   const formatted = displayed >= 1000000

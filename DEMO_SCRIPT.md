@@ -4,7 +4,7 @@
 **Problem statement:** Efficient systems for early detection, prevention and management of livestock diseases and animal health issues
 
 > Spoken narration is in plain text. `[Bracketed italics]` are stage directions — what to click, not what to say.
-> Before recording: sign out, so the demo starts clean at `/`.
+> Before recording: start the API on fresh demo data and the frontend (see [Setup](#setup)), then sign out, so the demo starts clean at `/`.
 
 ---
 
@@ -36,7 +36,7 @@ On the login page, the first thing we choose is the portal — and each one auth
 
 A farmer signs in with a **mobile number and a one-time password**. An institution signs in with an **institution ID and password**.
 
-*[Choose Livestock Owner → Continue → enter mobile → Send OTP → any 6 digits → Verify]*
+*[Choose Livestock Owner → Continue → enter `9876543210` → Send OTP → `123456` → Verify]*
 
 Let's enter as a farmer.
 
@@ -48,7 +48,7 @@ Let's enter as a farmer.
 
 This is the farmer's home screen. It greets the user by name, flags the animals that need attention, and — importantly — shows **offline mode**. In low-connectivity villages, reports are saved on the device and sync automatically when signal returns.
 
-*[Click **Report Symptom**]*
+*[Click **Report Symptom** → pick **Bhuri** → tap two symptoms → submit]*
 
 Reporting is icon-based and takes three steps: select the animal, select the symptoms, and receive an **AI-assisted diagnosis with a confidence score**. A farmer who cannot read English can complete this.
 
@@ -58,7 +58,7 @@ Every animal has a health card with its vaccination history. Advisories reach th
 
 *[Click **Vaccination Schedule**, then open a case from the home screen]*
 
-Vaccination Schedule tracks herd compliance, and Case Status shows the live timeline of a report — submitted, vet assigned, under observation, lab escalation.
+Vaccination Schedule tracks herd compliance, and Case Status shows the live timeline of a report — reported, under review, sent to the lab, treated, resolved — along with the vet's advice.
 
 *[Open the account menu → note Settings, Help, Log out]*
 
@@ -68,7 +68,9 @@ Vaccination Schedule tracks herd compliance, and Case Status shows the live time
 
 *[Sign out → demo access → **Veterinarian** under Livestock Owner]*
 
-The same case reaches the veterinary officer. Here is the **priority case queue**, the AI assessment with its confidence score, and **Field Visits** with a day plan and route.
+The case we just reported has already reached the veterinary officer. Here is the **priority case queue**, the AI assessment with its confidence score, and **Field Visits** with a day plan and route.
+
+*[Optional: open the new case → set the risk level → save]* The farmer gets a notification about the assessment straight away.
 
 ---
 
@@ -90,7 +92,7 @@ The laboratory receives those samples in a priority-sorted queue, and results fl
 
 *[Demo access → **Official** under Veterinary Hospital → `/hospital/official/overview`]*
 
-At the top of the chain, the district official. The **National Overview** gives live surveillance numbers across all India.
+At the top of the chain, the state official. The **Overview** gives live surveillance numbers for their state, Gujarat — including the case we reported a minute ago.
 
 *[Click **Risk Map**]*
 
@@ -124,7 +126,24 @@ Thank you.
 
 ## Presenter notes
 
-**Navigating fast.** The sign-in page has a **Demo access** panel at the bottom with one-click entry to all ten dashboards. Use it for every jump after the first login — only demo the full OTP flow once, at step 2.
+### Setup
+
+```bash
+# Terminal 1 — the API, on fresh demo data
+cd server
+cp .env.example .env          # once; fixes the demo OTP at 123456
+rm -rf .data                  # optional: wipe the previous run's reports
+npm run db:seed -- --demo
+npm run dev
+
+# Terminal 2 — the app
+npm run dev                   # http://localhost:5173
+```
+
+Everything in the demo is saved for real, so reseed before each recording (stop
+the API first) to start from the same state.
+
+**Navigating fast.** The sign-in page has a **Demo access** panel at the bottom with one-click entry as a seeded demo user for every role. Use it for every jump after the first login — only demo the full OTP flow once, at step 2.
 
 **Ten role dashboards, five shown.** Both portals carry Official, Lab and Admin areas. The script walks them through the *hospital* portal so the story climbs one chain: ward → lab → district → admin. If asked, note that the owner portal mirrors these with its own district-level views.
 
@@ -134,7 +153,8 @@ Thank you.
 - Advisories are issued in the language the user registered in.
 
 **If a question comes up**
-- *Is the login real?* It is a front-end prototype — any OTP or password is accepted, and no data leaves the browser.
+- *Is the login real?* Yes. Sign-in goes through the PawVita API (Supabase Auth in production), and reports, assessments, lab results and advisories are stored in Postgres, so what one role does shows up for the others. The demo panel just signs in as seeded demo accounts.
+- *Is the AI real?* Not yet. The diagnosis, risk map, outbreak clusters, forecast and assistant show sample output while the AI layer is built. The API already has the hook they will plug into.
 - *Why two portals?* Villages and institutions have different devices, literacy assumptions and authentication needs, but need the same case record.
 
 **Timing.** Spoken content is about 4 minutes 15 seconds at a normal pace; the rest is clicks and page loads. If you run long, cut step 4 (the veterinarian) — the case timeline in step 3 already implies it.

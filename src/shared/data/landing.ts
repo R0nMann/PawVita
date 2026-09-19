@@ -1,38 +1,13 @@
 /**
  * Marketing-surface data for the shared shell (landing, about, how-it-works).
  *
- * Kept separate from either portal's mock data so the public site does not reach
- * into `src/apps/*` — the two portals own their own fixtures.
+ * Kept separate from either portal's data so the public site does not reach
+ * into `src/apps/*`. Network totals, the alert ticker and the trend chart come
+ * from the API's public endpoints; what remains here is page copy, plus the
+ * AI-flagged clusters, which stand in for the AI layer until it exists.
  */
 
-export const NETWORK_STATS = {
-  registeredFarmers: 248650,
-  activeCases: 1847,
-  outbreaksControlled: 3920,
-  vaccinationCoverage: 78,
-  animalsTracked: 4200000,
-  vetOfficers: 12400,
-};
-
-export const OUTBREAK_TICKER = [
-  { id: 1, state: "Rajasthan", district: "Bikaner", disease: "FMD", severity: "high", time: "2h ago" },
-  { id: 2, state: "Uttar Pradesh", district: "Varanasi", disease: "LSD", severity: "medium", time: "4h ago" },
-  { id: 3, state: "Gujarat", district: "Kutch", disease: "HS", severity: "low", time: "6h ago" },
-  { id: 4, state: "Punjab", district: "Ludhiana", disease: "BRD", severity: "medium", time: "8h ago" },
-  { id: 5, state: "Maharashtra", district: "Nashik", disease: "FMD", severity: "high", time: "10h ago" },
-  { id: 6, state: "Haryana", district: "Hisar", disease: "Anthrax", severity: "high", time: "12h ago" },
-];
-
-export const DISEASE_TREND = [
-  { month: "Jul", FMD: 42, LSD: 18, HS: 24 },
-  { month: "Aug", FMD: 56, LSD: 22, HS: 19 },
-  { month: "Sep", FMD: 63, LSD: 31, HS: 21 },
-  { month: "Oct", FMD: 48, LSD: 28, HS: 16 },
-  { month: "Nov", FMD: 38, LSD: 24, HS: 14 },
-  { month: "Dec", FMD: 52, LSD: 20, HS: 18 },
-  { month: "Jan", FMD: 71, LSD: 15, HS: 22 },
-];
-
+/** Stand-in AI output (see src/shared/ai/preview.ts). */
 export const ACTIVE_CLUSTERS = [
   {
     id: "CLU001",
