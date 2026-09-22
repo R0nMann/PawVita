@@ -51,16 +51,22 @@ export class SupabaseAuthProvider implements AuthProvider {
     return createClient(this.settings.url, this.settings.publishableKey, { auth: STATELESS });
   }
 
-  async requestOtp(phone: string) {
+  /**
+   * Supabase generates the code, stores it and calls the project's Send Email
+   * hook — which is our POST /hooks/send-email, from where Brevo delivers it.
+   * `shouldCreateUser: false` keeps an unknown address from creating an
+   * identity; Supabase answers the same way either way, so nothing leaks.
+   */
+  async requestEmailOtp(email: string) {
     const { error } = await this.client().auth.signInWithOtp({
-      phone,
-      options: { shouldCreateUser: true, channel: "sms" },
+      email,
+      options: { shouldCreateUser: false },
     });
     if (error) fail(error);
   }
 
-  async verifyOtp(phone: string, otp: string) {
-    const { data, error } = await this.client().auth.verifyOtp({ phone, token: otp, type: "sms" });
+  async verifyEmailOtp(email: string, otp: string) {
+    const { data, error } = await this.client().auth.verifyOtp({ email, token: otp, type: "email" });
     if (error) fail(error);
     return toSession(data.session);
   }

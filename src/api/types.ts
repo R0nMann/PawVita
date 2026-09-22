@@ -75,6 +75,20 @@ export interface SignInResult {
   registrationRequired: boolean;
 }
 
+/**
+ * Staff sign-in may stop half-way: the password was right, but a code has been
+ * emailed and must be posted back to /auth/login/verify before there is a
+ * session. Accounts flagged two_factor_exempt (the demo logins) skip straight
+ * to the signed-in branch.
+ */
+export interface TwoFactorChallenge {
+  twoFactorRequired: true;
+  /** Partly hidden, e.g. "me•••@pawvita.in" — enough to say where to look. */
+  email: string;
+}
+
+export type LoginResult = ({ twoFactorRequired?: false } & SignInResult) | TwoFactorChallenge;
+
 export interface Person {
   id: string;
   fullName: string;

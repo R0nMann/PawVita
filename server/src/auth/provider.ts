@@ -25,9 +25,14 @@ export interface AuthClaims {
 
 export interface AuthProvider {
   readonly name: "supabase" | "local";
-  /** Send a one-time password by SMS. Creates the identity if it does not exist. */
-  requestOtp(phone: string): Promise<void>;
-  verifyOtp(phone: string, otp: string): Promise<AuthSession>;
+  /**
+   * Send a one-time password to an existing email identity — the second step
+   * of staff sign-in. Never creates an identity: the password step has already
+   * proved the account exists, and creating one here would let an unknown
+   * address trigger mail.
+   */
+  requestEmailOtp(email: string): Promise<void>;
+  verifyEmailOtp(email: string, otp: string): Promise<AuthSession>;
   signInWithPassword(email: string, password: string): Promise<AuthSession>;
   /**
    * Create an email + password identity. Session is null when the project

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createTestContext, OTP, type TestContext, type TestUser } from "./helpers.js";
+import { createTestContext, type TestContext, type TestUser } from "./helpers.js";
 
 let ctx: TestContext;
 let r: Awaited<ReturnType<TestContext["createRegions"]>>;
@@ -296,22 +296,29 @@ describe("field workers", () => {
     const herd = await ctx.request
       .post(api("/herds"))
       .set(worker.auth)
-      .send({ name: "Sunita's cattle", regionId: r.kheda.id, owner: { fullName: "Sunita Devi", phone: "9812345678" } })
+      .send({
+        name: "Sunita's cattle",
+        regionId: r.kheda.id,
+        owner: { fullName: "Sunita Devi", email: "sunita@example.org", phone: "9812345678" },
+      })
       .expect(201);
     expect(herd.body.owner).toMatchObject({ fullName: "Sunita Devi", role: "farmer" });
 
     // Outside their block: refused.
-    await ctx.request.post(api("/herds")).set(worker.auth).send({ name: "Far away", regionId: r.madhapar.id, owner: { fullName: "X" } }).expect(403);
+    await ctx.request.post(api("/herds")).set(worker.auth).send({ name: "Far away", regionId: r.madhapar.id, owner: { fullName: "X", email: "x@example.org" } })
+      .expect(403);
 
     const report = await ctx.request.post(api("/cases")).set(worker.auth).send({ herdId: herd.body.id, symptomCodes: ["fever"], animalsAffected: 3, animalsDead: 1 }).expect(201);
     expect(report.body.reporter.role).toBe("field_worker");
 
-    // The farmer signs in by OTP for the first time and is linked to the record.
-    await ctx.request.post(api("/auth/otp/request")).send({ phone: "9812345678" }).expect(200);
-    const verified = await ctx.request.post(api("/auth/otp/verify")).send({ phone: "9812345678", otp: OTP }).expect(200);
-    expect(verified.body.registrationRequired).toBe(false);
-    expect(verified.body.user.fullName).toBe("Sunita Devi");
-    const token = { Authorization: `Bearer ${verified.body.session.accessToken}` };
+    // Registering with the same email claims that record rather than duplicating it.
+    const claimed = await ctx.request
+      .post(api("/auth/register"))
+      .send({ email: "sunita@example.org", password: "a-strong-password", fullName: "Sunita Devi", regionId: r.kheda.id })
+      .expect(201);
+    expect(claimed.body.user.id).toBe(herd.body.owner.id);
+    expect(claimed.body.user.fullName).toBe("Sunita Devi");
+    const token = { Authorization: `Bearer ${claimed.body.session.accessToken}` };
     const mine = await ctx.request.get(api("/cases")).set(token).expect(200);
     expect(mine.body.items.map((c: { id: string }) => c.id)).toEqual([report.body.id]);
 

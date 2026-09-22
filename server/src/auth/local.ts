@@ -7,7 +7,7 @@ import { AuthError, type AuthClaims, type AuthProvider, type AuthSession } from 
 /**
  * Stand-in for Supabase Auth so the API runs with nothing installed. It issues
  * JWTs with the same claims Supabase does (sub, phone, email, aud) and, instead
- * of sending SMS, hands each OTP to `onOtp` (logged to the console in dev).
+ * of emailing a code, hands each one to `onOtp` (logged to the console in dev).
  *
  * Development and tests only — config refuses it when NODE_ENV=production.
  */
@@ -35,9 +35,9 @@ export interface LocalAuthOptions {
   jwtSecret: string;
   /** Persist identities between restarts. Null keeps everything in memory. */
   file: string | null;
-  /** Accept this code for every phone instead of generating one. */
+  /** Accept this code for every address instead of generating one. */
   fixedOtp?: string;
-  onOtp?: (phone: string, otp: string) => void;
+  onOtp?: (email: string, otp: string) => void;
 }
 
 const ISSUER = "pawvita-local-auth";
@@ -113,25 +113,43 @@ export class LocalAuthProvider implements AuthProvider {
     return { accessToken, refreshToken, expiresAt: now + ACCESS_TTL_SECONDS, authUserId: identity.id };
   }
 
-  async requestOtp(phone: string) {
+  private issueOtp(email: string) {
     const code = this.options.fixedOtp ?? String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
-    this.otps.set(phone, { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
-    this.options.onOtp?.(phone, code);
+    this.otps.set(email, { code, expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
+    this.options.onOtp?.(email, code);
   }
 
-  async verifyOtp(phone: string, otp: string) {
-    const pending = this.otps.get(phone);
+  private takeOtp(email: string, otp: string) {
+    const pending = this.otps.get(email);
     if (!pending || pending.expiresAt < Date.now()) {
-      this.otps.delete(phone);
+      this.otps.delete(email);
       throw new AuthError("The code has expired. Request a new one.", "otp_expired");
     }
     if (pending.code !== otp) {
       pending.attempts += 1;
-      if (pending.attempts >= OTP_MAX_ATTEMPTS) this.otps.delete(phone);
+      if (pending.attempts >= OTP_MAX_ATTEMPTS) this.otps.delete(email);
       throw new AuthError("The code is incorrect.", "invalid_otp");
     }
-    this.otps.delete(phone);
-    return this.issue(this.byPhone(phone) ?? this.create({ phone }));
+    this.otps.delete(email);
+  }
+
+  /**
+   * Stands in for Supabase's email OTP. Unknown addresses are accepted quietly
+   * so this cannot be used to discover which emails have accounts; verifying
+   * then fails because there is no code to match.
+   */
+  async requestEmailOtp(email: string) {
+    const address = email.toLowerCase();
+    if (!this.byEmail(address)) return;
+    this.issueOtp(address);
+  }
+
+  async verifyEmailOtp(email: string, otp: string) {
+    const address = email.toLowerCase();
+    this.takeOtp(address, otp);
+    const identity = this.byEmail(address);
+    if (!identity) throw new AuthError("The code is incorrect.", "invalid_otp");
+    return this.issue(identity);
   }
 
   async signInWithPassword(email: string, password: string) {

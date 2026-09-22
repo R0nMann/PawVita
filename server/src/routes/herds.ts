@@ -60,6 +60,9 @@ async function herdRegionFor(db: Db, user: CurrentUser, regionId: string | undef
 
 const ownerInput = z.object({
   fullName: v.text(120),
+  /** The farmer signs in with this; they set the password themselves later. */
+  email: v.email,
+  /** Contact number for the vet, not a credential. */
   phone: v.phone.optional(),
   preferredLanguage: v.language.default("en"),
 });
@@ -67,7 +70,7 @@ const ownerInput = z.object({
 /**
  * Resolve the farmer who owns a new herd. Farmers own their own herds; staff
  * name an existing farmer or register one inline (a farmer without a login
- * yet, linked later when they first verify their phone).
+ * yet, who claims the record by registering with the same email).
  */
 async function resolveOwner(
   db: Db,
@@ -85,12 +88,14 @@ async function resolveOwner(
     return owner.id;
   }
   if (!body.owner) throw badRequest("Give the herd owner (ownerId or owner).", { field: "owner" });
+  const [existing] = await db.select().from(users).where(eq(users.email, body.owner.email));
+  if (existing) {
+    if (existing.role !== "farmer") throw conflict("That email belongs to a staff account.");
+    return existing.id;
+  }
   if (body.owner.phone) {
-    const [existing] = await db.select().from(users).where(eq(users.phone, body.owner.phone));
-    if (existing) {
-      if (existing.role !== "farmer") throw conflict("That phone number belongs to a staff account.");
-      return existing.id;
-    }
+    const [byPhone] = await db.select({ id: users.id }).from(users).where(eq(users.phone, body.owner.phone));
+    if (byPhone) throw conflict("That phone number is already on another account.", { field: "phone" });
   }
   const [created] = await db
     .insert(users)
@@ -98,6 +103,7 @@ async function resolveOwner(
       role: "farmer",
       status: "active",
       fullName: body.owner.fullName,
+      email: body.owner.email,
       phone: body.owner.phone,
       preferredLanguage: body.owner.preferredLanguage,
       regionId: region.id,
@@ -220,6 +226,7 @@ export function herdsRouter(deps: Deps): Router {
         address: v.text(300).nullable().optional(),
       })
       .strict()
+      .refine(v.hasChanges, v.nothingToChange)
       .parse(req.body);
     await loadWritableHerd(db, me, id);
     const { regionId, ...rest } = body;
@@ -335,6 +342,7 @@ export function herdsRouter(deps: Deps): Router {
         notes: v.text(1000).nullable().optional(),
       })
       .strict()
+      .refine(v.hasChanges, v.nothingToChange)
       .parse(req.body);
     const { animal } = await loadVisibleAnimal(db, me, id);
     await loadWritableHerd(db, me, animal.herdId);

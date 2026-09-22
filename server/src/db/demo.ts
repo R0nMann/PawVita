@@ -1,7 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, or, sql } from "drizzle-orm";
 import type { Deps } from "../deps.js";
 import { recordCaseEvent } from "../services/case-workflow.js";
-import { insertRegion } from "../services/regions-admin.js";
 import {
   animals,
   cases,
@@ -25,33 +24,9 @@ import {
 
 export const DEMO_PASSWORD = "PawVita@2026";
 
-const REGION_TREE = [
-  {
-    name: "Gujarat", code: "GJ", lat: 22.26, lng: 71.19,
-    districts: [{
-      name: "Anand", code: "GJ-ANAND", lat: 22.56, lng: 72.95,
-      blocks: [
-        { name: "Anand", code: "GJ-ANAND-ANAND", lat: 22.55, lng: 72.95, villages: [["Vadod", 22.53, 72.99], ["Kheda", 22.6, 72.9]] },
-        { name: "Borsad", code: "GJ-ANAND-BORSAD", lat: 22.41, lng: 72.9, villages: [["Borsad", 22.41, 72.9]] },
-        { name: "Petlad", code: "GJ-ANAND-PETLAD", lat: 22.48, lng: 72.8, villages: [["Changa", 22.6, 72.82]] },
-      ],
-    }],
-  },
-  {
-    name: "Maharashtra", code: "MH", lat: 19.75, lng: 75.71,
-    districts: [{
-      name: "Pune", code: "MH-PUNE", lat: 18.52, lng: 73.86,
-      blocks: [{ name: "Haveli", code: "MH-PUNE-HAVELI", lat: 18.55, lng: 73.95, villages: [["Wagholi", 18.58, 73.98], ["Loni Kalbhor", 18.49, 74.02]] }],
-    }],
-  },
-  {
-    name: "Rajasthan", code: "RJ", lat: 27.02, lng: 74.22,
-    districts: [{
-      name: "Bikaner", code: "RJ-BIKANER", lat: 28.02, lng: 73.31,
-      blocks: [{ name: "Bikaner", code: "RJ-BIKANER-BIKANER", lat: 28.02, lng: 73.31, villages: [["Gadwala", 28.1, 73.2]] }],
-    }],
-  },
-] as const;
+/** Villages from the national hierarchy that the demo's farmers live in. */
+const VADOD = "GJ-ANAND-ANAND-VADOD";
+const CHANGA = "GJ-ANAND-PETLAD-CHANGA";
 
 function daysFromToday(n: number) {
   const d = new Date();
@@ -59,44 +34,45 @@ function daysFromToday(n: number) {
   return d.toISOString().slice(0, 10);
 }
 
+/** A demo person that must exist for the dataset to mean anything. */
+const MARKER_EMAIL = "ramesh.kumar@demo.pawvita.in";
+
 export async function seedDemo(deps: Deps) {
   const { db, auth } = deps;
-  const [already] = await db.select({ id: users.id }).from(users).where(eq(users.username, "admin"));
+  // Skip only when this dataset is already loaded. An unrelated account — an
+  // administrator created by hand, say — must not stop the demo seeding.
+  const [already] = await db.select({ id: users.id }).from(users).where(eq(users.email, MARKER_EMAIL));
   if (already) return { skipped: true as const };
 
   // Regions -------------------------------------------------------------------
-  const [india] = await db.select().from(regions).where(eq(regions.code, "IN"));
+  // The national hierarchy comes from the catalogue seed; the demo only points
+  // at the slice of it these people live and work in.
   const byCode = new Map<string, string>();
-  const byVillage = new Map<string, string>();
-  for (const s of REGION_TREE) {
-    const state = await insertRegion(db, { name: s.name, level: "state", code: s.code, lat: s.lat, lng: s.lng, parentId: india?.id });
-    byCode.set(s.code, state.id);
-    for (const d of s.districts) {
-      const district = await insertRegion(db, { name: d.name, level: "district", code: d.code, lat: d.lat, lng: d.lng, parentId: state.id });
-      byCode.set(d.code, district.id);
-      for (const b of d.blocks) {
-        const block = await insertRegion(db, { name: b.name, level: "block", code: b.code, lat: b.lat, lng: b.lng, parentId: district.id });
-        byCode.set(b.code, block.id);
-        for (const [name, lat, lng] of b.villages) {
-          const village = await insertRegion(db, { name, level: "village", code: `${b.code}-${name.toUpperCase().replace(/\s+/g, "")}`, lat, lng, parentId: block.id });
-          byVillage.set(name, village.id);
-        }
-      }
-    }
+  for (const r of await db.select({ id: regions.id, code: regions.code }).from(regions)) {
+    if (r.code) byCode.set(r.code, r.id);
   }
-  const region = (code: string) => byCode.get(code)!;
-  const village = (name: string) => byVillage.get(name)!;
+  const region = (code: string) => {
+    const id = byCode.get(code);
+    if (!id) throw new Error(`Demo seed: region ${code} is missing — seed the catalogue first.`);
+    return id;
+  };
+  const india = region("IN");
 
   // Organisations -------------------------------------------------------------
-  const orgs = await db
-    .insert(organizations)
-    .values([
-      { type: "hospital", name: "District Veterinary Hospital, Anand", code: "vh-anand-01", regionId: region("GJ-ANAND"), phone: "+912692250000" },
-      { type: "lab", name: "Disease Diagnostic Laboratory, Anand", code: "lab-anand-01", regionId: region("GJ-ANAND") },
-      { type: "hospital", name: "Veterinary Polyclinic, Pune", code: "vh-pune-01", regionId: region("MH-PUNE") },
-      { type: "department", name: "Animal Husbandry Department, Gujarat", code: "ahd-gujarat", regionId: region("GJ") },
-    ])
-    .returning();
+  // Codes are unique and organisations outlive the people in them, so reuse any
+  // that are already there rather than colliding on a second run.
+  const orgSeed: (typeof organizations.$inferInsert)[] = [
+    { type: "hospital", name: "District Veterinary Hospital, Anand", code: "vh-anand-01", regionId: region("GJ-ANAND"), phone: "+912692250000" },
+    { type: "lab", name: "Disease Diagnostic Laboratory, Anand", code: "lab-anand-01", regionId: region("GJ-ANAND") },
+    { type: "hospital", name: "Veterinary Polyclinic, Pune", code: "vh-pune-01", regionId: region("MH-PUNE") },
+    { type: "department", name: "Animal Husbandry Department, Gujarat", code: "ahd-gujarat", regionId: region("GJ") },
+  ];
+  const presentOrgs = await db
+    .select()
+    .from(organizations)
+    .where(inArray(organizations.code, orgSeed.map((o) => o.code!)));
+  const newOrgs = orgSeed.filter((o) => !presentOrgs.some((e) => e.code === o.code));
+  const orgs = [...presentOrgs, ...(newOrgs.length ? await db.insert(organizations).values(newOrgs).returning() : [])];
   const org = (code: string) => orgs.find((o) => o.code === code)!.id;
 
   // People (with sign-in identities) -----------------------------------------
@@ -111,10 +87,10 @@ export async function seedDemo(deps: Deps) {
     organizationId?: string;
     preferredLanguage?: string;
   }[] = [
-    { key: "admin", fullName: "PawVita Administrator", role: "admin", email: "admin@pawvita.in", username: "admin", regionId: india!.id },
-    { key: "ramesh", fullName: "Ramesh Kumar", role: "farmer", phone: "+919876543210", regionId: village("Vadod"), preferredLanguage: "gu" },
-    { key: "sunita", fullName: "Sunita Devi", role: "farmer", phone: "+919876543214", regionId: village("Changa"), preferredLanguage: "hi" },
-    { key: "kiran", fullName: "Kiran Patel", role: "field_worker", phone: "+919876543216", regionId: region("GJ-ANAND-ANAND") },
+    { key: "admin", fullName: "PawVita Administrator", role: "admin", email: "admin@pawvita.in", username: "admin", regionId: india },
+    { key: "ramesh", fullName: "Ramesh Kumar", role: "farmer", email: "ramesh.kumar@demo.pawvita.in", phone: "+919876543210", regionId: region(VADOD), preferredLanguage: "gu" },
+    { key: "sunita", fullName: "Sunita Devi", role: "farmer", email: "sunita.devi@demo.pawvita.in", phone: "+919876543214", regionId: region(CHANGA), preferredLanguage: "hi" },
+    { key: "kiran", fullName: "Kiran Patel", role: "field_worker", email: "kiran.patel@demo.pawvita.in", phone: "+919876543216", regionId: region("GJ-ANAND-ANAND") },
     { key: "meera", fullName: "Dr. Meera Patel", role: "vet", email: "meera.patel@pawvita.in", username: "dr.meera", phone: "+919876543211", regionId: region("GJ-ANAND"), organizationId: org("vh-anand-01") },
     { key: "anil", fullName: "Dr. Anil Singh", role: "vet", email: "anil.singh@pawvita.in", username: "dr.anil", phone: "+919876543215", regionId: region("MH-PUNE"), organizationId: org("vh-pune-01") },
     { key: "ward", fullName: "Ramnath Yadav", role: "ward_staff", email: "ward.anand@pawvita.in", username: "vh-anand-01", regionId: region("GJ-ANAND"), organizationId: org("vh-anand-01") },
@@ -123,6 +99,16 @@ export async function seedDemo(deps: Deps) {
   ];
   const ids: Record<string, string> = {};
   for (const p of people) {
+    // Someone may already hold this email or staff ID — an administrator made
+    // by hand, for instance. Point the dataset at them rather than duplicating.
+    const [taken] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(or(p.email ? eq(users.email, p.email) : undefined, p.username ? eq(users.username, p.username) : undefined));
+    if (taken) {
+      ids[p.key] = taken.id;
+      continue;
+    }
     const { authUserId } = await auth.adminCreateUser({
       email: p.email,
       phone: p.phone,
@@ -141,6 +127,8 @@ export async function seedDemo(deps: Deps) {
         regionId: p.regionId,
         organizationId: p.organizationId,
         preferredLanguage: p.preferredLanguage ?? "en",
+        // A walkthrough has no inbox to read a sign-in code from.
+        twoFactorExempt: true,
         approvedAt: new Date(),
       })
       .returning({ id: users.id });
@@ -148,8 +136,8 @@ export async function seedDemo(deps: Deps) {
   }
 
   // Herds and animals -----------------------------------------------------------
-  const herdOf = async (name: string, ownerKey: string, villageName: string, createdBy = ownerKey) => {
-    const [v] = await db.select().from(regions).where(eq(regions.id, village(villageName)));
+  const herdOf = async (name: string, ownerKey: string, villageCode: string, createdBy = ownerKey) => {
+    const [v] = await db.select().from(regions).where(eq(regions.id, region(villageCode)));
     const [h] = await db
       .insert(herds)
       .values({
@@ -167,8 +155,8 @@ export async function seedDemo(deps: Deps) {
       .returning();
     return h!;
   };
-  const rameshHerd = await herdOf("Ramesh Kumar Dairy", "ramesh", "Vadod");
-  const sunitaHerd = await herdOf("Sunita Devi's cattle", "sunita", "Changa", "kiran");
+  const rameshHerd = await herdOf("Ramesh Kumar Dairy", "ramesh", VADOD);
+  const sunitaHerd = await herdOf("Sunita Devi's cattle", "sunita", CHANGA, "kiran");
 
   const animalRows = await db
     .insert(animals)

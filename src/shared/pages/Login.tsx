@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { errorMessage } from "../../api/client";
 import { authApi } from "../../api/endpoints";
 import { useAuth, homeFor } from "../../auth/AuthContext";
-import { DEMO_ENABLED, DEMO_OTP } from "../../auth/demo";
 import { PORTALS, PORTAL_LIST } from "../../auth/portals";
 import type { PortalId } from "../../auth/portals";
 import AuthShell from "../components/AuthShell";
@@ -12,6 +11,14 @@ import DemoAccess from "../components/DemoAccess";
 import { IconAlert, IconArrowRight, IconEye, IconEyeOff } from "../components/Icons";
 
 type Step = "portal" | "identify" | "otp";
+
+/**
+ * Digits in an emailed sign-in code. Supabase generates the code, so this only
+ * caps what the field accepts — it must match the OTP length set on the
+ * project (Authentication → Providers → Email), or people cannot type the
+ * whole code in. The API accepts 4–8 digits.
+ */
+const OTP_LENGTH = 8;
 
 export default function Login() {
   const navigate = useNavigate();
@@ -24,10 +31,11 @@ export default function Login() {
 
   const [portal, setPortal] = useState<PortalId>(initialPortal);
   const [step, setStep] = useState<Step>(requested ? "identify" : "portal");
-  const [mobile, setMobile] = useState("");
   const [otp, setOtp] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  /** Masked address the code was sent to, shown on the second step. */
+  const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,20 +78,8 @@ export default function Login() {
   function handleIdentify(e: React.FormEvent) {
     e.preventDefault();
 
-    if (config.authMethod === "otp") {
-      if (!/^\d{10}$/.test(mobile)) {
-        setError("Enter the 10-digit mobile number registered with PawVita.");
-        return;
-      }
-      void attempt(async () => {
-        await authApi.requestOtp(mobile);
-        setStep("otp");
-      });
-      return;
-    }
-
     if (identifier.trim().length < 3) {
-      setError("Enter your staff ID or official email address.");
+      setError("Enter your email address or staff ID.");
       return;
     }
     if (!password) {
@@ -92,6 +88,13 @@ export default function Login() {
     }
     void attempt(async () => {
       const result = await authApi.login(identifier.trim(), password);
+      if (result.twoFactorRequired) {
+        // Password accepted; a code is on its way to the account's inbox.
+        setCodeSentTo(result.email);
+        setOtp("");
+        setStep("otp");
+        return;
+      }
       if (!result.user) {
         throw new Error("This login has no PawVita account yet. Register first.");
       }
@@ -100,21 +103,16 @@ export default function Login() {
     });
   }
 
-  function handleOtp(e: React.FormEvent) {
+  function handleVerify(e: React.FormEvent) {
     e.preventDefault();
     if (otp.length < 4) {
-      setError("Enter the OTP sent to your mobile number.");
+      setError("Enter the code from your email.");
       return;
     }
     void attempt(async () => {
-      const result = await authApi.verifyOtp(mobile, otp);
-      if (result.registrationRequired || !result.user) {
-        // Phone verified but no account yet: finish on the registration form.
-        navigate("/register?portal=user", {
-          replace: true,
-          state: { verified: { phone: mobile, tokens: result.session } },
-        });
-        return;
+      const result = await authApi.verifyLoginOtp(identifier.trim(), otp);
+      if (!result.user) {
+        throw new Error("This login has no PawVita account yet. Register first.");
       }
       const session = completeSignIn(result.session, result.user, portal);
       navigate(next || homeFor(session), { replace: true });
@@ -185,108 +183,72 @@ export default function Login() {
             tabIndex={-1}
             className="text-lg font-display font-bold text-gray-900 outline-none"
           >
-            {step === "otp" ? "Verify your mobile number" : "Your details"}
+            {step === "otp" ? "Check your email" : "Your details"}
           </h2>
 
           {errorBanner}
 
           {step === "identify" ? (
             <form onSubmit={handleIdentify} className="mt-5 space-y-5" noValidate>
-              {config.authMethod === "otp" ? (
-                <div>
-                  <label
-                    htmlFor={formId + "-mobile"}
-                    className="block text-sm font-semibold text-gray-700 mb-2"
+              <div>
+                <label htmlFor={formId + "-id"} className="block text-sm font-semibold text-gray-700 mb-2">
+                  Email or staff ID
+                </label>
+                <input
+                  id={formId + "-id"}
+                  type="text"
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="name@pawvita.in or vh-pune-01"
+                  aria-invalid={error ? true : undefined}
+                  className="w-full min-h-[48px] border border-gray-200 rounded-xl px-4 text-base bg-[#FAF9F6] focus-ring"
+                />
+              </div>
+              <div>
+                <label htmlFor={formId + "-pw"} className="block text-sm font-semibold text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id={formId + "-pw"}
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-invalid={error ? true : undefined}
+                    className="w-full min-h-[48px] border border-gray-200 rounded-xl pl-4 pr-14 text-base bg-[#FAF9F6] focus-ring"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 grid place-items-center text-gray-500 hover:text-gray-800 rounded-lg focus-ring"
                   >
-                    Mobile number
-                  </label>
-                  <div className="flex">
-                    <span className="px-3 grid place-items-center bg-gray-100 border border-r-0 border-gray-200 rounded-l-xl text-gray-600 text-sm">
-                      +91
-                    </span>
-                    <input
-                      id={formId + "-mobile"}
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="tel-national"
-                      value={mobile}
-                      onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      placeholder="98765 43210"
-                      aria-invalid={error ? true : undefined}
-                      aria-describedby={formId + "-mobile-help"}
-                      className="flex-1 min-w-0 min-h-[48px] border border-gray-200 rounded-r-xl px-4 text-base bg-[#FAF9F6] focus-ring"
-                    />
-                  </div>
-                  <p id={formId + "-mobile-help"} className="text-xs text-gray-500 mt-2">
-                    We will send a one-time password to this number. Your role comes from your account.
-                  </p>
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
                 </div>
-              ) : (
-                <>
-                  <div>
-                    <label
-                      htmlFor={formId + "-id"}
-                      className="block text-sm font-semibold text-gray-700 mb-2"
-                    >
-                      Staff ID or email
-                    </label>
-                    <input
-                      id={formId + "-id"}
-                      type="text"
-                      autoComplete="username"
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="vh-pune-01 or name@pawvita.in"
-                      aria-invalid={error ? true : undefined}
-                      className="w-full min-h-[48px] border border-gray-200 rounded-xl px-4 text-base bg-[#FAF9F6] focus-ring"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor={formId + "-pw"}
-                      className="block text-sm font-semibold text-gray-700 mb-2"
-                    >
-                      Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        id={formId + "-pw"}
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        aria-invalid={error ? true : undefined}
-                        className="w-full min-h-[48px] border border-gray-200 rounded-xl pl-4 pr-14 text-base bg-[#FAF9F6] focus-ring"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((s) => !s)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        aria-pressed={showPassword}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 grid place-items-center text-gray-500 hover:text-gray-800 rounded-lg focus-ring"
-                      >
-                        {showPassword ? <IconEyeOff /> : <IconEye />}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
+              </div>
 
               <button type="submit" disabled={busy} className={submitClass}>
-                {busy ? "Please wait…" : config.authMethod === "otp" ? "Send OTP" : "Sign in"}
+                {busy ? "Please wait…" : "Sign in"}
                 {!busy && <IconArrowRight />}
               </button>
             </form>
           ) : (
-            <form onSubmit={handleOtp} className="mt-5 space-y-5" noValidate>
+            <form onSubmit={handleVerify} className="mt-5 space-y-5" noValidate>
               <p className="text-sm text-gray-600">
-                OTP sent to <span className="font-semibold text-gray-900">+91 {mobile}</span>.{" "}
+                Code sent to <span className="font-semibold text-gray-900">{codeSentTo}</span>.{" "}
                 <button
                   type="button"
-                  onClick={() => setStep("identify")}
+                  onClick={() => {
+                    setCodeSentTo(null);
+                    setStep("identify");
+                  }}
                   className="text-[#1B4332] font-semibold underline underline-offset-2 rounded focus-ring"
                 >
-                  Change number
+                  Start again
                 </button>
               </p>
               <div>
@@ -302,22 +264,24 @@ export default function Login() {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH))}
+                  maxLength={OTP_LENGTH}
                   aria-invalid={error ? true : undefined}
                   aria-describedby={formId + "-otp-help"}
-                  className="w-full min-h-[52px] border border-gray-200 rounded-xl px-4 text-center text-2xl tracking-[0.4em] bg-[#FAF9F6] focus-ring"
+                  className="w-full min-h-[52px] border border-gray-200 rounded-xl px-4 text-center text-2xl tracking-[0.3em] bg-[#FAF9F6] focus-ring"
                 />
                 <p id={formId + "-otp-help"} className="text-xs text-gray-500 mt-2 text-center">
-                  {DEMO_ENABLED
-                    ? `Demo build — the demo OTP is ${DEMO_OTP}.`
-                    : "The code expires in a few minutes."}{" "}
+                  The code expires in a few minutes.{" "}
+                  {/* Resending means signing in again — the password is not kept around. */}
                   <button
                     type="button"
-                    disabled={busy}
-                    onClick={() => void attempt(async () => void (await authApi.requestOtp(mobile)))}
+                    onClick={() => {
+                      setCodeSentTo(null);
+                      setStep("identify");
+                    }}
                     className="text-[#1B4332] font-semibold underline underline-offset-2"
                   >
-                    Resend
+                    Send a new code
                   </button>
                 </p>
               </div>

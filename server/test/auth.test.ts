@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createTestContext, OTP, type TestContext } from "./helpers.js";
+import { createTestContext, type TestContext } from "./helpers.js";
 
 let ctx: TestContext;
 let regions: Awaited<ReturnType<TestContext["createRegions"]>>;
@@ -10,35 +10,24 @@ beforeAll(async () => {
 });
 afterAll(() => ctx.close());
 
-async function otpSignIn(phone: string) {
-  await ctx.request.post("/api/v1/auth/otp/request").send({ phone }).expect(200);
-  const res = await ctx.request.post("/api/v1/auth/otp/verify").send({ phone, otp: OTP }).expect(200);
-  return res.body as { session: { accessToken: string; refreshToken: string }; user: unknown; registrationRequired: boolean };
-}
-
-describe("phone OTP sign-in and farmer registration", () => {
-  it("normalises the phone, signs in, and asks an unknown number to register", async () => {
-    const res = await ctx.request.post("/api/v1/auth/otp/request").send({ phone: "098765 11111" }).expect(200);
-    expect(res.body.phone).toBe("+919876511111");
-    const verified = await otpSignIn("9876511111");
-    expect(verified.registrationRequired).toBe(true);
-    expect(verified.user).toBeNull();
-
-    // Protected routes explain what is missing rather than a bare 403.
-    const blocked = await ctx.request
-      .get("/api/v1/herds")
-      .set("Authorization", `Bearer ${verified.session.accessToken}`)
-      .expect(403);
-    expect(blocked.body.error.code).toBe("profile_required");
-
+describe("self-service registration", () => {
+  it("registers a farmer by email, activates them, and signs them back in", async () => {
     const registered = await ctx.request
-      .post("/api/v1/auth/register/phone")
-      .set("Authorization", `Bearer ${verified.session.accessToken}`)
-      .send({ fullName: "Ramesh Kumar", regionId: regions.vadod.id, preferredLanguage: "gu" })
+      .post("/api/v1/auth/register")
+      .send({
+        email: "Ramesh.Kumar@Example.org",
+        password: "a-strong-password",
+        fullName: "Ramesh Kumar",
+        regionId: regions.vadod.id,
+        phone: "098765 11111",
+        preferredLanguage: "gu",
+      })
       .expect(201);
     expect(registered.body.user).toMatchObject({
       role: "farmer",
       status: "active",
+      email: "ramesh.kumar@example.org",
+      // The phone is still stored, as the number a vet calls.
       phone: "+919876511111",
       preferredLanguage: "gu",
     });
@@ -49,34 +38,78 @@ describe("phone OTP sign-in and farmer registration", () => {
       "Vadod",
     ]);
 
-    // Signing in again returns the account directly.
-    const again = await otpSignIn("+91 98765 11111");
-    expect(again.registrationRequired).toBe(false);
-    await ctx.request.get("/api/v1/herds").set("Authorization", `Bearer ${again.session.accessToken}`).expect(200);
+    const signedIn = await ctx.request
+      .post("/api/v1/auth/login")
+      .send({ identifier: "ramesh.kumar@example.org", password: "a-strong-password" })
+      .expect(200);
+    expect(signedIn.body.registrationRequired).toBe(false);
+    await ctx.request
+      .get("/api/v1/herds")
+      .set("Authorization", `Bearer ${signedIn.body.session.accessToken}`)
+      .expect(200);
   });
 
-  it("rejects a wrong OTP", async () => {
-    await ctx.request.post("/api/v1/auth/otp/request").send({ phone: "9876522222" }).expect(200);
-    const res = await ctx.request.post("/api/v1/auth/otp/verify").send({ phone: "9876522222", otp: "000000" }).expect(401);
-    expect(res.body.error.code).toBe("invalid_otp");
+  it("refuses a duplicate email, username or phone", async () => {
+    await ctx.request
+      .post("/api/v1/auth/register")
+      .send({ email: "dupe@example.org", password: "a-strong-password", fullName: "First", role: "vet", username: "dupe.vet" })
+      .expect(201);
+
+    const email = await ctx.request
+      .post("/api/v1/auth/register")
+      .send({ email: "dupe@example.org", password: "another-password", fullName: "Second", role: "vet" })
+      .expect(409);
+    expect(email.body.error.details.fields).toContain("email");
+
+    const handle = await ctx.request
+      .post("/api/v1/auth/register")
+      .send({ email: "other@example.org", password: "another-password", fullName: "Third", role: "vet", username: "dupe.vet" })
+      .expect(409);
+    expect(handle.body.error.details.fields).toContain("username");
   });
 
-  it("rejects invalid phone numbers", async () => {
-    const res = await ctx.request.post("/api/v1/auth/otp/request").send({ phone: "12345" }).expect(400);
-    expect(res.body.error.code).toBe("validation_failed");
+  it("rejects a weak password and an invalid phone", async () => {
+    const weak = await ctx.request
+      .post("/api/v1/auth/register")
+      .send({ email: "weak@example.org", password: "short", fullName: "Weak", regionId: regions.vadod.id })
+      .expect(400);
+    expect(weak.body.error.code).toBe("validation_failed");
+
+    const phone = await ctx.request
+      .post("/api/v1/auth/register")
+      .send({ email: "badphone@example.org", password: "a-strong-password", fullName: "Bad", regionId: regions.vadod.id, phone: "12345" })
+      .expect(400);
+    expect(phone.body.error.code).toBe("validation_failed");
+  });
+
+  it("makes a farmer choose a village, not a state", async () => {
+    await ctx.request
+      .post("/api/v1/auth/register")
+      .send({ email: "noregion@example.org", password: "a-strong-password", fullName: "Nowhere" })
+      .expect(400);
+
+    const tooBroad = await ctx.request
+      .post("/api/v1/auth/register")
+      .send({ email: "state@example.org", password: "a-strong-password", fullName: "Statewide", regionId: regions.state.id })
+      .expect(400);
+    expect(tooBroad.body.error.details.field).toBe("regionId");
   });
 
   it("keeps non-farmer self-registrations pending until an admin approves", async () => {
     const admin = await ctx.createUser("admin");
-    const { session } = await otpSignIn("9876533333");
-    const auth = { Authorization: `Bearer ${session.accessToken}` };
     const res = await ctx.request
-      .post("/api/v1/auth/register/phone")
-      .set(auth)
-      .send({ fullName: "Kiran Patel", role: "field_worker", regionId: regions.anandBlock.id })
+      .post("/api/v1/auth/register")
+      .send({
+        email: "kiran.patel@example.org",
+        password: "a-strong-password",
+        fullName: "Kiran Patel",
+        role: "field_worker",
+        regionId: regions.anandBlock.id,
+      })
       .expect(201);
     expect(res.body.user.status).toBe("pending");
 
+    const auth = { Authorization: `Bearer ${res.body.session.accessToken}` };
     const blocked = await ctx.request.get("/api/v1/cases").set(auth).expect(403);
     expect(blocked.body.error.code).toBe("account_pending");
     // /me still works so the app can show "awaiting approval".
@@ -91,11 +124,9 @@ describe("phone OTP sign-in and farmer registration", () => {
   });
 
   it("does not let anyone self-register as an administrator", async () => {
-    const { session } = await otpSignIn("9876544444");
     await ctx.request
-      .post("/api/v1/auth/register/phone")
-      .set("Authorization", `Bearer ${session.accessToken}`)
-      .send({ fullName: "Mallory", role: "admin" })
+      .post("/api/v1/auth/register")
+      .send({ email: "mallory@example.org", password: "a-strong-password", fullName: "Mallory", role: "admin" })
       .expect(400);
   });
 });
@@ -104,7 +135,7 @@ describe("institution sign-in", () => {
   it("registers staff by email, then signs in with the username once approved", async () => {
     const lab = await ctx.createOrganization("lab", "lab-auth-01", regions.anand.id);
     const reg = await ctx.request
-      .post("/api/v1/auth/register/staff")
+      .post("/api/v1/auth/register")
       .send({
         email: "Priya.Sharma@Example.org",
         password: "a-strong-password",
@@ -118,7 +149,7 @@ describe("institution sign-in", () => {
 
     // Duplicate details are refused before any identity is created.
     const dup = await ctx.request
-      .post("/api/v1/auth/register/staff")
+      .post("/api/v1/auth/register")
       .send({ email: "priya.sharma@example.org", password: "another-password", fullName: "X", role: "vet" })
       .expect(409);
     expect(dup.body.error.details.fields).toContain("email");
@@ -136,7 +167,7 @@ describe("institution sign-in", () => {
 
   it("refreshes and signs out", async () => {
     const reg = await ctx.request
-      .post("/api/v1/auth/register/staff")
+      .post("/api/v1/auth/register")
       .send({ email: "vet.refresh@example.org", password: "a-strong-password", fullName: "Dr. R", role: "vet" })
       .expect(201);
     const refreshed = await ctx.request

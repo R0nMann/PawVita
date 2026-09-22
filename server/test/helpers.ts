@@ -14,6 +14,9 @@ import { insertRegion } from "../src/services/regions-admin.js";
 
 export const OTP = "123456";
 
+/** Every test account signs in with this. */
+export const PASSWORD = "correct-horse-battery";
+
 export type Role = (typeof users.$inferInsert)["role"];
 
 export interface TestUser {
@@ -23,7 +26,10 @@ export interface TestUser {
 }
 
 /** A fresh app on an in-memory Postgres with local auth and on-disk uploads in a temp dir. */
-export async function createTestContext(env: Record<string, string> = {}) {
+export async function createTestContext(
+  env: Record<string, string> = {},
+  overrides: Parameters<typeof createDeps>[1] = {},
+) {
   const uploads = fs.mkdtempSync(path.join(os.tmpdir(), "pawvita-test-"));
   const config = loadConfig({
     NODE_ENV: "test",
@@ -32,33 +38,25 @@ export async function createTestContext(env: Record<string, string> = {}) {
     MAX_UPLOAD_MB: "1",
     ...env,
   });
-  const deps = await createDeps(config, { logger: pino({ level: "silent" }) });
+  const deps = await createDeps(config, { logger: pino({ level: "silent" }), ...overrides });
   await deps.database.migrate();
   await seedCatalog(deps.db);
   const app = createApp(deps);
   const request = supertest(app);
 
-  let phoneCounter = 0;
-  let emailCounter = 0;
+  let accountCounter = 0;
 
   /** Create an active account and sign it in. */
   async function createUser(
     role: Role,
     options: { regionId?: string | null; organizationId?: string | null; fullName?: string; phone?: string; email?: string } = {},
   ): Promise<TestUser> {
-    const usePhone = options.phone ?? (options.email ? undefined : role === "farmer" || role === "field_worker");
-    let session;
-    let phone: string | undefined;
-    let email: string | undefined;
-    if (usePhone) {
-      phone = typeof options.phone === "string" ? options.phone : `+9198${String(76000000 + ++phoneCounter).padStart(8, "0")}`;
-      await deps.auth.requestOtp(phone);
-      session = await deps.auth.verifyOtp(phone, OTP);
-    } else {
-      email = options.email ?? `staff${++emailCounter}@test.pawvita.in`;
-      await deps.auth.adminCreateUser({ email, password: "correct-horse-battery" });
-      session = await deps.auth.signInWithPassword(email, "correct-horse-battery");
-    }
+    const n = ++accountCounter;
+    const email = options.email ?? `${role}${n}@test.pawvita.in`;
+    // A phone is contact detail, not a credential; only set one when asked.
+    const phone = options.phone;
+    await deps.auth.adminCreateUser({ email, password: PASSWORD });
+    const session = await deps.auth.signInWithPassword(email, PASSWORD);
     const [row] = await deps.db
       .insert(users)
       .values({

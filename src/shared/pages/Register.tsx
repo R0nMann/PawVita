@@ -2,10 +2,9 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { errorMessage } from "../../api/client";
 import { authApi } from "../../api/endpoints";
-import type { AuthTokens, Region } from "../../api/types";
+import type { Region } from "../../api/types";
 import { useAuth, homeFor } from "../../auth/AuthContext";
-import { DEMO_ENABLED, DEMO_OTP } from "../../auth/demo";
-import { PORTALS, roleFor } from "../../auth/portals";
+import { PORTALS, PORTAL_LIST, roleFor } from "../../auth/portals";
 import type { PortalId } from "../../auth/portals";
 import { LANGUAGES } from "../../lib/format";
 import RegionPicker from "../ui/RegionPicker";
@@ -21,13 +20,10 @@ interface FieldErrors {
   region?: string;
 }
 
-/** Set by the sign-in page when a phone verified an OTP but has no account yet. */
-interface VerifiedPhone {
-  phone: string;
-  tokens: AuthTokens;
-}
-
 const STEPS = ["Portal", "Role", "Details"] as const;
+
+/** Administrator accounts are created by other administrators, never here. */
+const JOINABLE_PORTALS = PORTAL_LIST.filter((p) => p.roles.some((r) => r.selfService));
 
 export default function Register() {
   const navigate = useNavigate();
@@ -35,19 +31,14 @@ export default function Register() {
   const [params] = useSearchParams();
   const { completeSignIn } = useAuth();
 
-  const verified = (location.state as { verified?: VerifiedPhone } | null)?.verified ?? null;
   const requested = params.get("portal");
-  const initialPortal: PortalId = verified
-    ? "user"
-    : requested === "hospital" || requested === "user"
-      ? requested
-      : "user";
+  const initialPortal: PortalId = requested === "hospital" || requested === "user" ? requested : "user";
 
-  const [step, setStep] = useState(requested || verified ? 1 : 0);
+  const [step, setStep] = useState(requested ? 1 : 0);
   const [portal, setPortal] = useState<PortalId>(initialPortal);
   const [roleId, setRoleId] = useState(PORTALS[initialPortal].roles[0]!.id);
   const [name, setName] = useState("");
-  const [contact, setContact] = useState(verified?.phone ?? "");
+  const [contact, setContact] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [orgCode, setOrgCode] = useState("");
@@ -56,8 +47,7 @@ export default function Register() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // Phone registration: the OTP step and the verified session it produces.
-  const [otpStep, setOtpStep] = useState(false);
+
   const [otp, setOtp] = useState("");
   const [confirmEmail, setConfirmEmail] = useState(false);
 
@@ -67,7 +57,6 @@ export default function Register() {
 
   const config = PORTALS[portal];
   const role = roleFor(portal, roleId);
-  const isOtpPortal = config.authMethod === "otp";
   const isVillageRole = role.backendRole === "farmer" || role.backendRole === "field_worker";
   const errorList = Object.entries(errors) as [keyof FieldErrors, string][];
 
@@ -78,7 +67,7 @@ export default function Register() {
 
   useEffect(() => {
     headingRef.current?.focus();
-  }, [step, otpStep]);
+  }, [step]);
 
   function choosePortal(id: PortalId) {
     setPortal(id);
@@ -88,12 +77,8 @@ export default function Register() {
   function validate(): boolean {
     const found: FieldErrors = {};
     if (name.trim().length < 2) found.name = "Enter your full name.";
-    if (isOtpPortal) {
-      if (!/^\d{10}$/.test(contact)) found.contact = "Enter a 10-digit mobile number.";
-    } else {
-      if (!/^\S+@\S+\.\S+$/.test(contact.trim())) found.contact = "Enter a valid official email address.";
-      if (password.length < 8) found.password = "Use a password of at least 8 characters.";
-    }
+    if (!/^\S+@\S+\.\S+$/.test(contact.trim())) found.contact = "Enter a valid email address.";
+    if (password.length < 8) found.password = "Use a password of at least 8 characters.";
     if (isVillageRole && (!region || !["village", "block", "district"].includes(region.level))) {
       found.region = "Choose your village so reports reach the right vet.";
     }
@@ -113,34 +98,12 @@ export default function Register() {
     }
   }
 
-  /** Create the account for a phone that has just been verified. */
-  async function registerVerifiedPhone(tokens: AuthTokens) {
-    const { user } = await authApi.registerPhone(tokens.accessToken, {
-      fullName: name.trim(),
-      role: role.backendRole,
-      regionId: region?.id,
-      preferredLanguage: language,
-      organizationCode: orgCode.trim() || undefined,
-    });
-    const session = completeSignIn(tokens, user, portal);
-    navigate(homeFor(session), { replace: true });
-  }
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
 
-    if (isOtpPortal) {
-      void run(async () => {
-        if (verified) return registerVerifiedPhone(verified.tokens);
-        await authApi.requestOtp(contact);
-        setOtpStep(true);
-      });
-      return;
-    }
-
     void run(async () => {
-      const result = await authApi.registerStaff({
+      const result = await authApi.register({
         email: contact.trim(),
         password,
         fullName: name.trim(),
@@ -159,28 +122,10 @@ export default function Register() {
     });
   }
 
-  function handleOtp(e: React.FormEvent) {
-    e.preventDefault();
-    if (otp.length < 4) {
-      setSubmitError("Enter the OTP sent to your mobile number.");
-      return;
-    }
-    void run(async () => {
-      const result = await authApi.verifyOtp(contact, otp);
-      if (result.user) {
-        // Already registered (or registered by a field worker): just sign in.
-        const session = completeSignIn(result.session, result.user, portal);
-        navigate(homeFor(session), { replace: true });
-        return;
-      }
-      await registerVerifiedPhone(result.session);
-    });
-  }
-
   const titles = [
     "Create your PawVita account",
     "Tell us what you do",
-    otpStep ? "Verify your mobile number" : isOtpPortal ? "Your details" : "Your account",
+    "Your account",
   ];
   const subtitles = [
     "Registration takes under a minute and is free for farmers and field workers.",
@@ -247,18 +192,13 @@ export default function Register() {
         {titles[step]}
       </h2>
 
-      {verified && step > 0 && (
-        <p className="mb-5 rounded-xl bg-[#E8F1EC] px-4 py-3 text-sm text-[#1B4332]">
-          +91 {verified.phone} is verified. Finish your details to create the account.
-        </p>
-      )}
-
       {step === 0 && (
         <div>
           <PortalChoice
             value={portal}
             onChange={choosePortal}
             name={formId + "-portal"}
+            portals={JOINABLE_PORTALS}
             legend="Are you registering as a livestock owner or an institution?"
           />
           <button type="button" onClick={() => setStep(1)} className={primaryClass + " w-full mt-6"}>
@@ -286,15 +226,13 @@ export default function Register() {
             </ul>
           </div>
           <div className="flex gap-3">
-            {!verified && (
-              <button
-                type="button"
-                onClick={() => setStep(0)}
-                className="flex-1 min-h-[48px] rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors focus-ring"
-              >
-                Back
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setStep(0)}
+              className="flex-1 min-h-[48px] rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors focus-ring"
+            >
+              Back
+            </button>
             <button type="button" onClick={() => setStep(2)} className={primaryClass}>
               Continue <IconArrowRight />
             </button>
@@ -332,42 +270,7 @@ export default function Register() {
         </div>
       )}
 
-      {step === 2 && otpStep && (
-        <form onSubmit={handleOtp} noValidate className="space-y-5">
-          <p className="text-sm text-gray-600">
-            OTP sent to <span className="font-semibold text-gray-900">+91 {contact}</span>.{" "}
-            <button
-              type="button"
-              onClick={() => setOtpStep(false)}
-              className="text-[#1B4332] font-semibold underline underline-offset-2 rounded focus-ring"
-            >
-              Change details
-            </button>
-          </p>
-          <div>
-            <label htmlFor={formId + "-otp"} className="block text-sm font-semibold text-gray-700 mb-2">
-              One-time password
-            </label>
-            <input
-              id={formId + "-otp"}
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="w-full min-h-[52px] border border-gray-200 rounded-xl px-4 text-center text-2xl tracking-[0.4em] bg-[#FAF9F6] focus-ring"
-            />
-            {DEMO_ENABLED && (
-              <p className="text-xs text-gray-500 mt-2 text-center">Demo build — the demo OTP is {DEMO_OTP}.</p>
-            )}
-          </div>
-          <button type="submit" disabled={busy} className={primaryClass + " w-full"}>
-            {busy ? "Creating account…" : "Verify and create account"} {!busy && <IconArrowRight />}
-          </button>
-        </form>
-      )}
-
-      {step === 2 && !otpStep && (
+      {step === 2 && (
         <form onSubmit={handleSubmit} noValidate className="space-y-5">
           <Field id={formId + "-name"} label="Full name" error={errors.name}>
             <input
@@ -376,7 +279,7 @@ export default function Register() {
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={isOtpPortal ? "Ramesh Kumar" : "Dr. Priya Sharma"}
+              placeholder="Ramesh Kumar"
               aria-invalid={errors.name ? true : undefined}
               className={inputClass}
             />
@@ -384,43 +287,23 @@ export default function Register() {
 
           <Field
             id={formId + "-contact"}
-            label={isOtpPortal ? "Mobile number" : "Official email"}
+            label="Email address"
             error={errors.contact}
-            help={isOtpPortal ? "Used for OTP sign-in and outbreak alerts." : undefined}
+            help="You sign in with this, and it is where your sign-in code goes."
           >
-            {isOtpPortal ? (
-              <div className="flex">
-                <span className="px-3 grid place-items-center bg-gray-100 border border-r-0 border-gray-200 rounded-l-xl text-gray-600 text-sm">
-                  +91
-                </span>
-                <input
-                  id={formId + "-contact"}
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="tel-national"
-                  value={contact}
-                  readOnly={!!verified}
-                  onChange={(e) => setContact(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  placeholder="98765 43210"
-                  aria-invalid={errors.contact ? true : undefined}
-                  className="flex-1 min-w-0 min-h-[48px] border border-gray-200 rounded-r-xl px-4 text-base bg-[#FAF9F6] focus-ring read-only:text-gray-500"
-                />
-              </div>
-            ) : (
-              <input
-                id={formId + "-contact"}
-                type="email"
-                autoComplete="email"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                placeholder="registrar@pawvita.in"
-                aria-invalid={errors.contact ? true : undefined}
-                className={inputClass}
-              />
-            )}
+            <input
+              id={formId + "-contact"}
+              type="email"
+              autoComplete="email"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="name@example.in"
+              aria-invalid={errors.contact ? true : undefined}
+              className={inputClass}
+            />
           </Field>
 
-          {!isOtpPortal && (
+          {(
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field id={formId + "-password"} label="Password" error={errors.password} help="At least 8 characters.">
                 <input
@@ -507,7 +390,7 @@ export default function Register() {
               Back
             </button>
             <button type="submit" disabled={busy} className={primaryClass}>
-              {busy ? "Please wait…" : isOtpPortal && !verified ? "Send OTP" : "Create account"}
+              {busy ? "Please wait…" : "Create account"}
               {!busy && <IconArrowRight />}
             </button>
           </div>

@@ -29,6 +29,7 @@ import type {
   LabRequest,
   LabRequestDetail,
   LabResult,
+  LoginResult,
   Organization,
   OrganizationType,
   Page,
@@ -56,17 +57,13 @@ import type {
 type Query = Record<string, QueryValue>;
 
 export const authApi = {
-  requestOtp: (phone: string) =>
-    apiFetch<{ sent: boolean; phone: string }>("/auth/otp/request", { body: { phone }, auth: false }),
-  verifyOtp: (phone: string, otp: string) =>
-    apiFetch<SignInResult>("/auth/otp/verify", { body: { phone, otp }, auth: false }),
   login: (identifier: string, password: string) =>
-    apiFetch<SignInResult>("/auth/login", { body: { identifier, password }, auth: false }),
-  registerPhone: (
-    token: string,
-    body: { fullName: string; role: BackendRole; regionId?: string; preferredLanguage: string; organizationCode?: string },
-  ) => apiFetch<{ user: Account }>("/auth/register/phone", { body, token }),
-  registerStaff: (body: {
+    apiFetch<LoginResult>("/auth/login", { body: { identifier, password }, auth: false }),
+  /** Second step of sign-in, when login answered with a two-factor challenge. */
+  verifyLoginOtp: (identifier: string, otp: string) =>
+    apiFetch<SignInResult>("/auth/login/verify", { body: { identifier, otp }, auth: false }),
+  /** Self-service sign-up, for every role a person may pick themselves. */
+  register: (body: {
     email: string;
     password: string;
     fullName: string;
@@ -77,7 +74,7 @@ export const authApi = {
     regionId?: string;
     preferredLanguage: string;
   }) =>
-    apiFetch<{ user: Account; session: AuthTokens | null; emailConfirmationRequired: boolean }>("/auth/register/staff", {
+    apiFetch<{ user: Account; session: AuthTokens | null; emailConfirmationRequired: boolean }>("/auth/register", {
       body,
       auth: false,
     }),

@@ -19,12 +19,14 @@ describe("rate limits", () => {
     await ctx.request.get("/api/v1/notifications").set(b.auth).expect(200);
   });
 
-  it("limits OTP sends per phone number", async () => {
-    for (let i = 0; i < 5; i++) {
-      await ctx.request.post("/api/v1/auth/otp/request").send({ phone: "9876500001" }).expect(200);
-    }
-    // The same number written differently still counts as the same phone.
-    await ctx.request.post("/api/v1/auth/otp/request").send({ phone: "+91 98765 00001" }).expect(429);
-    await ctx.request.post("/api/v1/auth/otp/request").send({ phone: "9876500002" }).expect(200);
+  it("limits sign-in attempts per identifier", async () => {
+    const attempt = (identifier: string) =>
+      ctx.request.post("/api/v1/auth/login").send({ identifier, password: "not-the-password" });
+
+    for (let i = 0; i < 10; i++) await attempt("target@test.pawvita.in").expect(401);
+    // Case and surrounding space still count as the same account.
+    await attempt("  Target@Test.PawVita.in  ").expect(429);
+    // A different account has its own budget.
+    await attempt("someone.else@test.pawvita.in").expect(401);
   });
 });
