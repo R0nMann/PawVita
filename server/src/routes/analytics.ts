@@ -32,8 +32,15 @@ const CHILD_LEVEL: Partial<Record<RegionLevel, RegionLevel>> = {
   block: "village",
 };
 
+/**
+ * The calendar day in India time — the zone `window()` interprets a range in.
+ * Taking it from UTC instead would drop every report made between midnight and
+ * 05:30 IST out of the default window, since UTC is still on the previous day.
+ */
+const INDIA_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" });
+
 function isoDay(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return INDIA_DAY.format(d);
 }
 
 function daysAgo(n: number) {
