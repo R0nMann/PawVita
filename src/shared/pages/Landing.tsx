@@ -10,10 +10,11 @@ import {
   IconGlobe,
   IconHospital,
   IconLeaf,
+  IconShield,
   IconWifiOff,
 } from "../components/Icons";
 
-const PORTAL_ICONS = { user: IconLeaf, hospital: IconHospital } as const;
+const PORTAL_ICONS = { user: IconLeaf, hospital: IconHospital, admin: IconShield } as const;
 
 export default function Landing() {
   return (
@@ -302,7 +303,7 @@ function PortalGateway() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {PORTAL_LIST.map((portal) => {
             const Icon = PORTAL_ICONS[portal.id];
             return (

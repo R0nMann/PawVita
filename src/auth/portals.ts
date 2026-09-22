@@ -1,10 +1,13 @@
 /**
- * The two entry points a visitor chooses between on the login / register screen.
+ * The entry points a visitor chooses between on the login / register screen.
  *
  * `user`     -> PawVita_Users  (village-level: livestock owners and the field
  *               network that serves them)
  * `hospital` -> PawVita_Hospital (institutional: veterinary hospitals, labs and
  *               the government officials supervising them)
+ * `admin`    -> the administration console (accounts, the region hierarchy and
+ *               platform health). Self-contained: an administrator signs in to
+ *               the console and cannot open the other two portals.
  *
  * Every route inside a portal is namespaced under its `basePath`, which is how
  * the two originally-separate applications now coexist in one router.
@@ -16,7 +19,7 @@
  */
 import type { BackendRole } from "../api/types";
 
-export type PortalId = "user" | "hospital";
+export type PortalId = "user" | "hospital" | "admin";
 
 export interface PortalRole {
   id: string;
@@ -44,8 +47,6 @@ export interface Portal {
   /** Accent colour for the portal, used for badges and selected states. */
   accent: string;
   accentSoft: string;
-  /** How this portal authenticates — farmers get OTP, institutions get credentials. */
-  authMethod: "otp" | "credentials";
   roles: PortalRole[];
   highlights: string[];
 }
@@ -59,7 +60,6 @@ export const PORTALS: Record<PortalId, Portal> = {
     basePath: "/user",
     accent: "#1B4332",
     accentSoft: "#E8F1EC",
-    authMethod: "otp",
     roles: [
       {
         id: "farmer",
@@ -106,15 +106,6 @@ export const PORTALS: Record<PortalId, Portal> = {
         backendRole: "lab_tech",
         selfService: true,
       },
-      {
-        id: "admin",
-        label: "System Administrator",
-        short: "Admin",
-        desc: "Manage users, regions and platform health",
-        home: "/user/admin/users",
-        backendRole: "admin",
-        selfService: false,
-      },
     ],
     highlights: [
       "Icon-based symptom reporting in 22 languages",
@@ -130,7 +121,6 @@ export const PORTALS: Record<PortalId, Portal> = {
     basePath: "/hospital",
     accent: "#4A90D9",
     accentSoft: "#E7F0FA",
-    authMethod: "credentials",
     roles: [
       {
         id: "ward",
@@ -168,15 +158,6 @@ export const PORTALS: Record<PortalId, Portal> = {
         backendRole: "lab_tech",
         selfService: true,
       },
-      {
-        id: "admin",
-        label: "System Administrator",
-        short: "Admin",
-        desc: "Platform administrators",
-        home: "/hospital/admin/users",
-        backendRole: "admin",
-        selfService: false,
-      },
     ],
     highlights: [
       "Digital ward view with live admission status",
@@ -184,14 +165,40 @@ export const PORTALS: Record<PortalId, Portal> = {
       "District risk maps and outbreak cluster detection",
     ],
   },
+  admin: {
+    id: "admin",
+    name: "Administration",
+    title: "Administration Portal",
+    tagline: "Approve accounts, maintain the region hierarchy and watch platform health.",
+    basePath: "/admin",
+    accent: "#1F2937",
+    accentSoft: "#EEF1F5",
+    roles: [
+      {
+        id: "admin",
+        label: "System Administrator",
+        short: "Admin",
+        desc: "Manage accounts, regions and platform health",
+        home: "/admin/users",
+        backendRole: "admin",
+        selfService: false,
+      },
+    ],
+    highlights: [
+      "Approve staff registrations and manage every account",
+      "Maintain states, districts, blocks and villages",
+      "Service status, sync backlog and AI queue at a glance",
+    ],
+  },
 };
 
-export const PORTAL_LIST: Portal[] = [PORTALS.user, PORTALS.hospital];
+export const PORTAL_LIST: Portal[] = [PORTALS.user, PORTALS.hospital, PORTALS.admin];
 
 /** Resolve the portal that owns a given pathname, if any. */
 export function portalForPath(pathname: string): PortalId | null {
   if (pathname === "/user" || pathname.startsWith("/user/")) return "user";
   if (pathname === "/hospital" || pathname.startsWith("/hospital/")) return "hospital";
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return "admin";
   return null;
 }
 
@@ -210,13 +217,14 @@ const UTILITY_AREAS = ["notifications", "settings", "help-support"];
 
 /**
  * Whether a role may open a path inside its portal. Each role has its own
- * area; vets can also work the lab queue, and administrators can go anywhere.
+ * area, and vets can also work the lab queue.
  */
 export function canOpen(portal: PortalId, roleId: string, pathname: string): boolean {
+  // The console is one area, so every screen under /admin is open to it.
+  if (portal === "admin") return true;
   const area = pathname.split("/")[2];
   if (!area || UTILITY_AREAS.includes(area)) return true;
   const role = roleFor(portal, roleId);
-  if (role.backendRole === "admin") return true;
   const allowed = [areaOf(role), ...(role.backendRole === "vet" ? ["lab"] : [])];
   return allowed.includes(area);
 }
@@ -227,7 +235,10 @@ export function canOpen(portal: PortalId, roleId: string, pathname: string): boo
  * only exist in the hospital portal, farmers only in the owner portal).
  */
 export function portalRoleFor(backendRole: BackendRole, preferred: PortalId): { portal: PortalId; role: PortalRole } {
-  const order: PortalId[] = preferred === "user" ? ["user", "hospital"] : ["hospital", "user"];
+  // The portal picked at sign-in wins when it has a screen for this role;
+  // otherwise the others are tried in turn. Only the admin console holds the
+  // admin role, so an administrator always lands there whatever they picked.
+  const order: PortalId[] = [preferred, ...(["user", "hospital", "admin"] as PortalId[]).filter((p) => p !== preferred)];
   for (const portal of order) {
     const role = PORTALS[portal].roles.find((r) => r.backendRole === backendRole);
     if (role) return { portal, role };

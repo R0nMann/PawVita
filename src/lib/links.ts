@@ -6,19 +6,20 @@ export function notificationLink(session: Pick<Session, "portal" | "role">, n: A
   const caseId = typeof n.data.caseId === "string" ? n.data.caseId : null;
   const labRequestId = typeof n.data.labRequestId === "string" ? n.data.labRequestId : null;
   const { portal, role } = session;
+  // The console has no case or herd screens, and an administrator cannot open
+  // the portals that do, so only account notifications lead anywhere.
+  if (portal === "admin") return n.type === "account" ? "/admin/users" : null;
   if (portal === "user") {
     if (role === "lab" && labRequestId) return `/user/lab/sample/${labRequestId}`;
-    if ((role === "vet" || role === "admin") && caseId) return `/user/vet/case/${caseId}`;
+    if (role === "vet" && caseId) return `/user/vet/case/${caseId}`;
     if ((role === "farmer" || role === "field_worker") && caseId) return `/user/farmer/case-status/${caseId}`;
     if (n.type === "vaccination_reminder") return "/user/farmer/vaccination-schedule";
-    if (n.type === "account" && role === "admin") return "/user/admin/users";
     if (n.type === "visit" && role === "vet") return "/user/vet/field-visits";
   } else {
     if (role === "lab" && labRequestId) return `/hospital/lab/sample/${labRequestId}`;
-    if ((role === "doctor" || role === "admin") && caseId) return `/hospital/doctor/case/${caseId}`;
+    if (role === "doctor" && caseId) return `/hospital/doctor/case/${caseId}`;
     if (role === "ward" && caseId) return `/hospital/ward/case-status/${caseId}`;
     if (n.type === "vaccination_reminder") return "/hospital/ward/vaccination-schedule";
-    if (n.type === "account" && role === "admin") return "/hospital/admin/users";
     if (n.type === "visit" && role === "doctor") return "/hospital/doctor/field-visits";
   }
   return null;

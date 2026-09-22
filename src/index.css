@@ -303,30 +303,29 @@ textarea:focus-visible,
 [data-portal='user'] th { padding: 12px 16px; border-bottom: 1px solid rgba(0, 0, 0, 0.06); }
 [data-portal='user'] tbody tr:hover { background: rgba(27, 67, 50, 0.03); }
 
-/* --- Veterinary Hospital portal -------------------------------------------- */
+/* --- Veterinary Hospital portal and the administration console ------------- */
 
 /* A modifier layered on top of Tailwind classes, for light sidebars. */
-[data-portal='hospital'] .sidebar-link {
+[data-portal='hospital'] .sidebar-link,
+[data-portal='admin'] .sidebar-link {
   transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-[data-portal='hospital'] .sidebar-link:hover {
+[data-portal='hospital'] .sidebar-link:hover,
+[data-portal='admin'] .sidebar-link:hover {
   background: rgba(27, 67, 50, 0.08);
   transform: translateX(4px);
 }
 
-[data-portal='hospital'] .sidebar-link.active {
+[data-portal='hospital'] .sidebar-link.active,
+[data-portal='admin'] .sidebar-link.active {
   background: rgba(27, 67, 50, 0.12);
   color: #1B4332;
   font-weight: 600;
 }
 
-[data-portal='hospital'] h1,
-[data-portal='hospital'] h2,
-[data-portal='hospital'] h3,
-[data-portal='hospital'] h4,
-[data-portal='hospital'] h5,
-[data-portal='hospital'] h6 {
+[data-portal='hospital'] :is(h1, h2, h3, h4, h5, h6),
+[data-portal='admin'] :is(h1, h2, h3, h4, h5, h6) {
   font-family: 'Poppins', sans-serif;
 }
 

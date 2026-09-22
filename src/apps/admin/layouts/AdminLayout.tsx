@@ -1,15 +1,20 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import Header from "../components/Header";
-import ChatBot from "../components/ChatBot";
+import ConsoleHeader from "../../../shared/components/ConsoleHeader";
+import BackToHome from '../../../shared/components/BackToHome';
 import { useSession } from "../../../auth/AuthContext";
 import { useSystemHealth } from "../../../api/queries";
 
+/**
+ * The administration console: the light top bar the hospital portal uses, over
+ * a dark navigation rail. The console is the whole of an administrator’s
+ * session — the other two portals are closed to them.
+ */
 const NAV = [
-  { label: "Users", href: "/hospital/admin/users", icon: "👥" },
-  { label: "Regions", href: "/hospital/admin/regions", icon: "🗺️" },
-  { label: "System Health", href: "/hospital/admin/system-health", icon: "💻" },
-  { label: "Notifications", href: "/hospital/notifications", icon: "🔔" },
-  { label: "Settings", href: "/hospital/settings", icon: "⚙️" },
+  { label: "Users", href: "/admin/users", icon: "👥" },
+  { label: "Regions", href: "/admin/regions", icon: "🗺️" },
+  { label: "System Health", href: "/admin/system-health", icon: "💻" },
+  { label: "Notifications", href: "/admin/notifications", icon: "🔔" },
+  { label: "Settings", href: "/admin/settings", icon: "⚙️" },
 ];
 
 export default function AdminLayout() {
@@ -18,11 +23,12 @@ export default function AdminLayout() {
   const session = useSession();
   const health = useSystemHealth();
   const down = health.data
-    ? Object.values(health.data.services).filter(s => s.status === "down").length
+    ? Object.values(health.data.services).filter((s) => s.status === "down").length
     : 0;
+
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
-      <Header role="Admin" />
+      <ConsoleHeader role="Admin" portal="admin" nav={NAV} />
       <div className="flex flex-1">
         <aside className="hidden md:flex flex-col w-56 bg-gray-900 sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
           <div className="p-4">
@@ -37,7 +43,7 @@ export default function AdminLayout() {
               </div>
             </div>
             <nav className="space-y-1">
-              {NAV.map(n => (
+              {NAV.map((n) => (
                 <Link
                   key={n.href}
                   to={n.href}
@@ -49,25 +55,35 @@ export default function AdminLayout() {
               ))}
             </nav>
           </div>
+
           {/* Account actions sit apart from the admin navigation above. */}
           <div className="p-4 mt-auto border-t border-white/10">
-            <Link to="/hospital/help-support" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-all">
-              <span className="text-base" aria-hidden="true">❓</span> Help &amp; Support
+            <Link
+              to="/admin/help-support"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-all"
+            >
+              <span className="text-base" aria-hidden="true">
+                ❓
+              </span>{" "}
+              Help &amp; Support
             </Link>
             <button
               type="button"
               onClick={() => navigate("/logout")}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all w-full text-left text-red-300 hover:text-white hover:bg-red-500/25 mt-1 border-t border-white/10 pt-3"
             >
-              <span className="text-base" aria-hidden="true">🚪</span> Log out
+              <span className="text-base" aria-hidden="true">
+                🚪
+              </span>{" "}
+              Log out
             </button>
           </div>
         </aside>
         <main className="flex-1 p-6 overflow-auto">
+          <BackToHome className="mb-3" />
           <Outlet />
         </main>
       </div>
-      <ChatBot />
     </div>
   );
 }

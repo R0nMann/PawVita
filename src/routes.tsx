@@ -25,7 +25,6 @@ const FarmerLayout = lazy(() => import("./apps/user/layouts/FarmerLayout"));
 const VetLayout = lazy(() => import("./apps/user/layouts/VetLayout"));
 const UserOfficialLayout = lazy(() => import("./apps/user/layouts/OfficialLayout"));
 const UserLabLayout = lazy(() => import("./apps/user/layouts/LabLayout"));
-const UserAdminLayout = lazy(() => import("./apps/user/layouts/AdminLayout"));
 
 const FarmerHome = lazy(() => import("./apps/user/pages/farmer/FarmerHome"));
 const FarmerReportSymptom = lazy(() => import("./apps/user/pages/farmer/ReportSymptom"));
@@ -48,10 +47,8 @@ const UserReports = lazy(() => import("./apps/user/pages/official/Reports"));
 
 const UserLabQueue = lazy(() => import("./apps/user/pages/lab/LabQueue"));
 const UserSampleDetail = lazy(() => import("./apps/user/pages/lab/SampleDetail"));
+const UserLabCase = lazy(() => import("./apps/user/pages/lab/CaseDetail"));
 
-const UserAdminUsers = lazy(() => import("./apps/user/pages/admin/Users"));
-const UserAdminRegions = lazy(() => import("./apps/user/pages/admin/Regions"));
-const UserSystemHealth = lazy(() => import("./apps/user/pages/admin/SystemHealth"));
 
 const UserNotifications = lazy(() => import("./apps/user/pages/shared/Notifications"));
 const UserSettings = lazy(() => import("./apps/user/pages/shared/Settings"));
@@ -62,7 +59,6 @@ const WardLayout = lazy(() => import("./apps/hospital/layouts/HospitalLayout"));
 const DoctorLayout = lazy(() => import("./apps/hospital/layouts/DoctorLayout"));
 const HospOfficialLayout = lazy(() => import("./apps/hospital/layouts/OfficialLayout"));
 const HospLabLayout = lazy(() => import("./apps/hospital/layouts/LabLayout"));
-const HospAdminLayout = lazy(() => import("./apps/hospital/layouts/AdminLayout"));
 
 const WardHome = lazy(() => import("./apps/hospital/pages/hospital/Home"));
 const WardReportSymptom = lazy(() => import("./apps/hospital/pages/hospital/ReportSymptom"));
@@ -85,14 +81,20 @@ const HospReports = lazy(() => import("./apps/hospital/pages/official/Reports"))
 
 const HospLabQueue = lazy(() => import("./apps/hospital/pages/lab/Queue"));
 const HospLabSample = lazy(() => import("./apps/hospital/pages/lab/Sample"));
+const HospLabCase = lazy(() => import("./apps/hospital/pages/lab/Case"));
 
-const HospAdminUsers = lazy(() => import("./apps/hospital/pages/admin/Users"));
-const HospAdminRegions = lazy(() => import("./apps/hospital/pages/admin/Regions"));
-const HospSystemHealth = lazy(() => import("./apps/hospital/pages/admin/SystemHealth"));
 
 const HospNotifications = lazy(() => import("./apps/hospital/pages/shared/Notifications"));
 const HospSettings = lazy(() => import("./apps/hospital/pages/shared/Settings"));
 const HospHelpSupport = lazy(() => import("./apps/hospital/pages/shared/HelpSupport"));
+
+const AdminLayout = lazy(() => import("./apps/admin/layouts/AdminLayout"));
+const AdminUsers = lazy(() => import("./apps/admin/pages/Users"));
+const AdminRegions = lazy(() => import("./apps/admin/pages/Regions"));
+const AdminSystemHealth = lazy(() => import("./apps/admin/pages/SystemHealth"));
+const AdminNotifications = lazy(() => import("./apps/admin/pages/Notifications"));
+const AdminSettings = lazy(() => import("./apps/admin/pages/Settings"));
+const AdminHelpSupport = lazy(() => import("./apps/admin/pages/HelpSupport"));
 
 /**
  * Landing route for a portal: send the signed-in visitor to the home screen of
@@ -170,18 +172,11 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="queue" replace /> },
           { path: "queue", Component: UserLabQueue },
           { path: "sample/:id", Component: UserSampleDetail },
+          { path: "case/:id", Component: UserLabCase },
         ],
       },
-      {
-        path: "admin",
-        Component: UserAdminLayout,
-        children: [
-          { index: true, element: <Navigate to="users" replace /> },
-          { path: "users", Component: UserAdminUsers },
-          { path: "regions", Component: UserAdminRegions },
-          { path: "system-health", Component: UserSystemHealth },
-        ],
-      },
+      // The admin console moved out into its own portal.
+      { path: "admin/*", loader: () => redirect("/admin") },
       { path: "notifications", Component: utilityPage(UserNotifications, "user") },
       { path: "settings", Component: utilityPage(UserSettings, "user") },
       { path: "help-support", Component: utilityPage(UserHelpSupport, "user") },
@@ -236,21 +231,34 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="queue" replace /> },
           { path: "queue", Component: HospLabQueue },
           { path: "sample/:id", Component: HospLabSample },
+          { path: "case/:id", Component: HospLabCase },
         ],
       },
-      {
-        path: "admin",
-        Component: HospAdminLayout,
-        children: [
-          { index: true, element: <Navigate to="users" replace /> },
-          { path: "users", Component: HospAdminUsers },
-          { path: "regions", Component: HospAdminRegions },
-          { path: "system-health", Component: HospSystemHealth },
-        ],
-      },
+      // The admin console moved out into its own portal.
+      { path: "admin/*", loader: () => redirect("/admin") },
       { path: "notifications", Component: utilityPage(HospNotifications, "hospital") },
       { path: "settings", Component: utilityPage(HospSettings, "hospital") },
       { path: "help-support", Component: utilityPage(HospHelpSupport, "hospital") },
+    ],
+  },
+
+  // ------------------------------------------------- Administration portal --
+  {
+    path: "/admin",
+    element: <PortalShell portal="admin" />,
+    children: [
+      {
+        Component: AdminLayout,
+        children: [
+          { index: true, element: <Navigate to="users" replace /> },
+          { path: "users", Component: AdminUsers },
+          { path: "regions", Component: AdminRegions },
+          { path: "system-health", Component: AdminSystemHealth },
+          { path: "notifications", Component: AdminNotifications },
+          { path: "settings", Component: AdminSettings },
+          { path: "help-support", Component: AdminHelpSupport },
+        ],
+      },
     ],
   },
 

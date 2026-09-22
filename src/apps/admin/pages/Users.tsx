@@ -1,4 +1,4 @@
-import UsersAdmin from "../../../../shared/admin/UsersAdmin";
+import UsersAdmin from "../../../shared/admin/UsersAdmin";
 
 export default function Users() {
   return (

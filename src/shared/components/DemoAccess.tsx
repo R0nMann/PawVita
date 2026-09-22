@@ -6,8 +6,10 @@ import { DEMO_ACCOUNTS, DEMO_ENABLED, demoSignIn } from "../../auth/demo";
 import type { Portal } from "../../auth/portals";
 
 /**
- * One-click entry into every role in both portals, signing in as the seeded
- * demo accounts. Hidden unless demo access is enabled (see auth/demo.ts).
+ * One-click entry into the demo roles, signing in as the seeded demo accounts.
+ * Hidden unless demo access is enabled (see auth/demo.ts). A portal with no
+ * demo logins of its own — the administration console — is left out entirely
+ * rather than shown as an empty row.
  */
 export default function DemoAccess({ portals }: { portals: Portal[] }) {
   const navigate = useNavigate();
@@ -15,7 +17,12 @@ export default function DemoAccess({ portals }: { portals: Portal[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (!DEMO_ENABLED) return null;
+  // Only portals that actually have seeded logins to offer.
+  const offered = portals
+    .map((portal) => ({ portal, roles: portal.roles.filter((r) => DEMO_ACCOUNTS[portal.id]?.[r.id]) }))
+    .filter((entry) => entry.roles.length > 0);
+
+  if (!DEMO_ENABLED || offered.length === 0) return null;
 
   async function enter(portal: Portal, roleId: string) {
     setBusy(portal.id + roleId);
@@ -28,7 +35,7 @@ export default function DemoAccess({ portals }: { portals: Portal[] }) {
     } catch (err) {
       setError(
         err instanceof ApiError && (err.status === 401 || err.code === "invalid_credentials")
-          ? "Demo accounts not found. Run `npm run db:seed -- --demo` in server/ (with LOCAL_AUTH_FIXED_OTP=123456 for farmer logins)."
+          ? "Demo accounts not found. Run `npm run db:seed -- --demo` in server/."
           : errorMessage(err),
       );
     } finally {
@@ -50,23 +57,21 @@ export default function DemoAccess({ portals }: { portals: Portal[] }) {
         </p>
       )}
       <div className="space-y-4">
-        {portals.map((portal) => (
+        {offered.map(({ portal, roles }) => (
           <div key={portal.id}>
             <p className="text-xs font-semibold text-gray-600 mb-2">{portal.name}</p>
             <div className="flex flex-wrap gap-2">
-              {portal.roles
-                .filter((role) => DEMO_ACCOUNTS[portal.id][role.id])
-                .map((role) => (
-                  <button
-                    key={role.id}
-                    type="button"
-                    disabled={busy !== null}
-                    onClick={() => void enter(portal, role.id)}
-                    className="min-h-[44px] px-3.5 rounded-xl border border-[#E8E5DF] bg-white text-xs font-semibold text-gray-700 hover:border-[#1B4332] hover:text-[#1B4332] transition-colors focus-ring disabled:opacity-50"
-                  >
-                    {busy === portal.id + role.id ? "Signing in…" : role.short}
-                  </button>
-                ))}
+              {roles.map((role) => (
+                <button
+                  key={role.id}
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void enter(portal, role.id)}
+                  className="min-h-[44px] px-3.5 rounded-xl border border-[#E8E5DF] bg-white text-xs font-semibold text-gray-700 hover:border-[#1B4332] hover:text-[#1B4332] transition-colors focus-ring disabled:opacity-50"
+                >
+                  {busy === portal.id + role.id ? "Signing in…" : role.short}
+                </button>
+              ))}
             </div>
           </div>
         ))}

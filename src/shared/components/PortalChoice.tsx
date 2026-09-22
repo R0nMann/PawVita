@@ -1,10 +1,11 @@
 import { PORTAL_LIST } from "../../auth/portals";
-import type { PortalId } from "../../auth/portals";
-import { IconCheck, IconHospital, IconLeaf } from "./Icons";
+import type { Portal, PortalId } from "../../auth/portals";
+import { IconCheck, IconHospital, IconLeaf, IconShield } from "./Icons";
 
 const ICONS: Record<PortalId, React.ComponentType<{ className?: string }>> = {
   user: IconLeaf,
   hospital: IconHospital,
+  admin: IconShield,
 };
 
 /**
@@ -18,17 +19,20 @@ export default function PortalChoice({
   onChange,
   name,
   legend = "Which portal are you using?",
+  portals = PORTAL_LIST,
 }: {
   value: PortalId;
   onChange: (id: PortalId) => void;
   name: string;
   legend?: string;
+  /** Narrow the choice — registration only offers portals people can join. */
+  portals?: Portal[];
 }) {
   return (
     <fieldset className="border-0 p-0 m-0">
       <legend className="text-sm font-semibold text-gray-700 mb-3">{legend}</legend>
       <div className="grid gap-3 sm:grid-cols-2">
-        {PORTAL_LIST.map((portal) => {
+        {portals.map((portal) => {
           const Icon = ICONS[portal.id];
           const selected = value === portal.id;
           return (

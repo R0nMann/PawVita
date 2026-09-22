@@ -104,7 +104,7 @@ export default function About() {
             ))}
           </ul>
 
-          <div className="grid md:grid-cols-2 gap-5 mt-12">
+          <div className="grid md:grid-cols-3 gap-5 mt-12">
             {PORTAL_LIST.map((portal) => (
               <article key={portal.id} className="bg-white rounded-2xl border border-[#E8E5DF] p-6">
                 <span

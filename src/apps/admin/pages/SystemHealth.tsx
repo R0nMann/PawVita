@@ -1,4 +1,4 @@
-import SystemHealthView from "../../../../shared/admin/SystemHealthView";
+import SystemHealthView from "../../../shared/admin/SystemHealthView";
 
 export default function SystemHealth() {
   return (

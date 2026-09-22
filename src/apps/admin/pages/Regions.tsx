@@ -1,4 +1,4 @@
-import RegionsAdmin from "../../../../shared/admin/RegionsAdmin";
+import RegionsAdmin from "../../../shared/admin/RegionsAdmin";
 
 export default function Regions() {
   return (
