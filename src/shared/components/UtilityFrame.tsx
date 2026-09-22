@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import { useAuth, homeFor } from "../../auth/AuthContext";
 import { PORTALS } from "../../auth/portals";
 import type { PortalId } from "../../auth/portals";
+import LogoMark from "./LogoMark";
 
 /**
  * Frame for the cross-cutting pages each portal ships (notifications, settings,
@@ -20,9 +21,7 @@ export function utilityPage(Page: ComponentType, portal: PortalId) {
         <header className="bg-white border-b border-[#E8E5DF] sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2 rounded-lg focus-ring">
-              <span className="text-2xl" aria-hidden="true">
-                🐄
-              </span>
+              <LogoMark size="w-8 h-8" />
               <span className="font-display font-bold text-[#1B4332]">PawVita</span>
             </Link>
             <span

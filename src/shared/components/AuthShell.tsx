@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { PORTALS } from "../../auth/portals";
 import type { PortalId } from "../../auth/portals";
 import { IconCheck, IconGlobe, IconShield, IconWifiOff } from "./Icons";
+import LogoMark from "./LogoMark";
 
 const ASSURANCES = [
   { Icon: IconGlobe, label: "22 Indian languages" },
@@ -39,9 +40,7 @@ export default function AuthShell({
           to="/"
           className="inline-flex items-center gap-3 font-display font-bold text-xl w-fit focus-ring rounded-lg"
         >
-          <span className="w-10 h-10 rounded-xl bg-white/15 grid place-items-center text-2xl" aria-hidden="true">
-            🐄
-          </span>
+          <LogoMark size="w-10 h-10" plate />
           <span>
             PawVita
             <span className="block text-xs font-normal text-white/60 -mt-0.5">
@@ -94,12 +93,7 @@ export default function AuthShell({
             to="/"
             className="lg:hidden inline-flex items-center gap-2.5 font-display font-bold text-[#1B4332] text-lg mb-8 focus-ring rounded-lg"
           >
-            <span
-              className="w-10 h-10 rounded-xl gradient-hero grid place-items-center text-xl"
-              aria-hidden="true"
-            >
-              🐄
-            </span>
+            <LogoMark size="w-10 h-10" />
             PawVita
           </Link>
 

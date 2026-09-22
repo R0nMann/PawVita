@@ -4,6 +4,7 @@ import { useAuth, homeFor, portalFor } from "../../auth/AuthContext";
 import { PORTAL_LIST } from "../../auth/portals";
 import OutbreakTicker from "../components/OutbreakTicker";
 import { IconClose, IconMenu, IconPhone } from "../components/Icons";
+import LogoMark from "../components/LogoMark";
 
 const NAV = [
   { to: "/", label: "Home", end: true },
@@ -41,12 +42,7 @@ export default function PublicLayout() {
       <header className="bg-white/95 backdrop-blur-sm sticky top-0 z-40 border-b border-[#E8E5DF]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16 gap-4">
           <Link to="/" className="flex items-center gap-2.5 rounded-lg focus-ring shrink-0">
-            <span
-              className="w-9 h-9 gradient-hero rounded-xl grid place-items-center text-lg"
-              aria-hidden="true"
-            >
-              🐄
-            </span>
+            <LogoMark size="w-9 h-9" />
             <span className="leading-tight">
               <span className="block font-display font-bold text-[#1B4332]">PawVita</span>
               <span className="block text-[11px] text-gray-500">Livestock Disease Surveillance</span>
@@ -161,9 +157,7 @@ export default function PublicLayout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl" aria-hidden="true">
-                🐄
-              </span>
+              <LogoMark size="w-9 h-9" plate />
               <span className="font-display font-bold text-white text-lg">PawVita</span>
             </div>
             <p className="text-sm leading-relaxed">
