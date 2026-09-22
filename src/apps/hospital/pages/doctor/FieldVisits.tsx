@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { visitApi } from "../../../../api/endpoints";
 import { useApiMutation, useVisits } from "../../../../api/queries";
 import type { Visit, VisitStatus } from "../../../../api/types";
-import { formatDate, formatTime, isoDay, mapsLink } from "../../../../lib/format";
+import { formatDate, formatTime, isoDay, isoOffset, mapsLink } from "../../../../lib/format";
 import { EmptyState, FormError, QueryState } from "../../../../shared/ui/States";
 
 const STATUS_COLORS: Record<VisitStatus, string> = {
@@ -25,8 +25,8 @@ function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: numb
 export default function FieldVisits() {
   const visitsQ = useVisits({
     mine: true,
-    from: new Date(Date.now() - 14 * 86400000).toISOString(),
-    to: new Date(Date.now() + 30 * 86400000).toISOString(),
+    from: isoOffset(-14 * 86400000),
+    to: isoOffset(30 * 86400000),
   });
   const update = useApiMutation(
     ({ id, status }: { id: string; status: VisitStatus }) => visitApi.update(id, { status }),

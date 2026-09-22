@@ -164,6 +164,7 @@ export function visitsRouter(deps: Deps): Router {
         notes: v.text(4000).nullable().optional(),
       })
       .strict()
+      .refine(v.hasChanges, v.nothingToChange)
       .parse(req.body);
     const { visit, herdName, ownerId } = await loadVisit(db, me, v.uuid.parse(req.params.id));
     if (me.role !== "admin" && visit.vetId !== me.id && visit.createdById !== me.id) {

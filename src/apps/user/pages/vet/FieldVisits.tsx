@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { visitApi } from '../../../../api/endpoints';
 import { useApiMutation, useVisits } from '../../../../api/queries';
 import type { Visit, VisitStatus } from '../../../../api/types';
-import { formatDate, formatTime, isoDay, mapsLink } from '../../../../lib/format';
+import { formatDate, formatTime, isoDay, isoOffset, mapsLink } from '../../../../lib/format';
 import { Loading } from '../../../../shared/ui/States';
 
 const monthName = new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' });
@@ -17,7 +17,7 @@ export default function FieldVisits() {
   const from = month;
   const to = new Date(month.getFullYear(), month.getMonth() + 1, 1);
   const visitsQ = useVisits({ mine: true, from: from.toISOString(), to: to.toISOString() });
-  const recentQ = useVisits({ mine: true, status: 'completed', from: new Date(Date.now() - 30 * 86400000).toISOString() });
+  const recentQ = useVisits({ mine: true, status: 'completed', from: isoOffset(-30 * 86400000) });
   const update = useApiMutation(
     ({ id, status }: { id: string; status: VisitStatus }) => visitApi.update(id, { status }),
     [['visits'], ['cases']],

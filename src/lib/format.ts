@@ -50,6 +50,20 @@ export function isToday(v: string | Date): boolean {
   return isoDay(toDate(v)) === isoDay();
 }
 
+/**
+ * An ISO timestamp `offsetMs` from now (negative for the past), floored to the
+ * hour — for `from` / `to` query parameters.
+ *
+ * React Query builds its cache key from the parameters, so a bare
+ * `new Date(Date.now() - ...)` would be a new key on every render: the query
+ * refetches, the result re-renders, and the page loops until the API rate
+ * limits it. Flooring to the hour keeps the key stable between renders.
+ */
+export function isoOffset(offsetMs: number): string {
+  const hour = 3600_000;
+  return new Date(Math.floor((Date.now() + offsetMs) / hour) * hour).toISOString();
+}
+
 export function ageFrom(birthDate: string | null | undefined): string | null {
   if (!birthDate) return null;
   const months = Math.floor((Date.now() - toDate(birthDate).getTime()) / (30.44 * 24 * 3600 * 1000));

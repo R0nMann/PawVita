@@ -8,6 +8,7 @@ import {
   diseaseName,
   formatDate,
   formatTime,
+  isoOffset,
   RISK_LABEL,
   riskKey,
   SPECIES_LABEL,
@@ -31,7 +32,7 @@ export default function DoctorDashboard() {
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const queue = useCases({ open: true, sort: "priority", limit: 50 }, { refetchInterval: 60_000 });
   const resolved = useCases({ status: "resolved", updatedSince: monthStart, limit: 100 });
-  const visits = useVisits({ mine: true, status: ["scheduled", "in_progress"], from: new Date(Date.now() - 12 * 3600_000).toISOString() });
+  const visits = useVisits({ mine: true, status: ["scheduled", "in_progress"], from: isoOffset(-12 * 3600_000) });
   const vets = useVets({ organizationId: session.account.organizationId ?? undefined });
 
   const open = queue.data?.items ?? [];

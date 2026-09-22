@@ -155,6 +155,7 @@ export function adminRouter(deps: Deps): Router {
         preferredLanguage: v.language.optional(),
       })
       .strict()
+      .refine(v.hasChanges, v.nothingToChange)
       .parse(req.body);
     if (id === me.id && ((body.role && body.role !== "admin") || (body.status && body.status !== "active"))) {
       throw conflict("You cannot demote or suspend your own account.");
@@ -220,7 +221,7 @@ export function adminRouter(deps: Deps): Router {
   });
 
   router.patch("/organizations/:id", async (req, res) => {
-    const body = orgFields.partial().strict().parse(req.body);
+    const body = orgFields.partial().strict().refine(v.hasChanges, v.nothingToChange).parse(req.body);
     if (body.regionId) await requireRegion(db, body.regionId);
     const [row] = await db
       .update(organizations)
@@ -256,6 +257,7 @@ export function adminRouter(deps: Deps): Router {
         lng: v.longitude.nullable().optional(),
       })
       .strict()
+      .refine(v.hasChanges, v.nothingToChange)
       .parse(req.body);
     const [row] = await db.update(regions).set(body).where(eq(regions.id, v.uuid.parse(req.params.id))).returning();
     if (!row) throw notFound("Region");

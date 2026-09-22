@@ -21,6 +21,13 @@ export function queryList<T extends z.ZodType>(item: T) {
   }, z.array(item).optional());
 }
 
+/**
+ * For PATCH bodies: `.refine(hasChanges, nothingToChange)`. Every field is
+ * optional, so without this `{}` would reach the database as an empty update.
+ */
+export const hasChanges = (body: object) => Object.values(body).some((value) => value !== undefined);
+export const nothingToChange = { message: "Send at least one field to change." };
+
 export const pagination = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).max(100_000).default(0),

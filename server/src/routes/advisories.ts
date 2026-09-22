@@ -13,16 +13,28 @@ type AdvisoryRow = typeof advisories.$inferSelect;
 
 const translation = z.object({ title: v.text(200), body: v.text(4000) });
 
+const translations = z.partialRecord(v.language, translation);
+const severity = z.enum(ADVISORY_SEVERITIES);
+const category = z.enum(ADVISORY_CATEGORIES);
+
 const advisoryFields = z.object({
   title: v.text(200),
   body: v.text(4000),
-  translations: z.partialRecord(v.language, translation).default({}),
-  severity: z.enum(ADVISORY_SEVERITIES).default("info"),
-  category: z.enum(ADVISORY_CATEGORIES).default("general"),
+  translations,
+  severity,
+  category,
   regionId: v.uuid.nullable().optional(),
   diseaseCode: z.string().max(40).nullable().optional(),
   species: z.array(z.enum(SPECIES)).max(9).nullable().optional(),
   expiresAt: v.isoDateTime.nullable().optional(),
+});
+
+// Defaults only for a new advisory. Zod applies defaults even under .partial(),
+// so on the edit schema they would silently overwrite fields the edit left out.
+const newAdvisory = advisoryFields.extend({
+  translations: translations.default({}),
+  severity: severity.default("info"),
+  category: category.default("general"),
 });
 
 /** Advisories reach everyone in the target region; staff also see those issued below their area. */
@@ -108,7 +120,7 @@ export function advisoriesRouter(deps: Deps): Router {
 
   router.post("/", issuers, async (req, res) => {
     const me = currentUser(req);
-    const body = advisoryFields.parse(req.body);
+    const body = newAdvisory.parse(req.body);
     const region = await checkTarget(db, me, body.regionId);
     if (body.diseaseCode) {
       const [d] = await db.select({ code: diseases.code }).from(diseases).where(eq(diseases.code, body.diseaseCode));
@@ -136,7 +148,7 @@ export function advisoriesRouter(deps: Deps): Router {
   router.patch("/:id", issuers, async (req, res) => {
     const me = currentUser(req);
     const row = await loadOwn(me, v.uuid.parse(req.params.id));
-    const body = advisoryFields.partial().strict().parse(req.body);
+    const body = advisoryFields.partial().strict().refine(v.hasChanges, v.nothingToChange).parse(req.body);
     if (body.regionId !== undefined) await checkTarget(db, me, body.regionId);
     const [updated] = await db
       .update(advisories)
