@@ -2,7 +2,7 @@ import { loadConfig } from "../config.js";
 import { seedCatalog } from "./catalog.js";
 import { createDatabase } from "./client.js";
 
-/** `npm run db:migrate` — apply pending migrations, then add any missing catalogue rows. */
+/** `npm run db:migrate` — apply pending migrations, then add any missing catalogue and region rows. */
 const config = loadConfig();
 const database = await createDatabase(config.db);
 try {

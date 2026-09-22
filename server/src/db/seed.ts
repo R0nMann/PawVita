@@ -4,9 +4,10 @@ import { seedCatalog } from "./catalog.js";
 import { seedDemo } from "./demo.js";
 
 /**
- * `npm run db:seed` — refresh the symptom / disease / vaccine catalogues.
- * `npm run db:seed -- --demo` — also load the demo dataset (regions,
- * hospitals, users with sign-in identities, herds and cases).
+ * `npm run db:seed` — refresh the symptom / disease / vaccine catalogues and
+ * top up the national region hierarchy.
+ * `npm run db:seed -- --demo` — also load the demo dataset (hospitals, users
+ * with sign-in identities, herds and cases).
  */
 const args = new Set(process.argv.slice(2));
 const config = loadConfig();
@@ -22,9 +23,6 @@ try {
     } else {
       console.log(`\nDemo accounts (password for email/username logins: ${result.password}):`);
       console.table(result.accounts);
-      if (deps.auth.name === "local") {
-        console.log("Phone logins: request an OTP; with AUTH_PROVIDER=local the code is printed in the server log.");
-      }
     }
   }
 } finally {

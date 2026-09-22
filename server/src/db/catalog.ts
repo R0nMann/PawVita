@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
 import type { Db } from "./client.js";
-import { diseases, regions, symptoms, vaccines, type SPECIES } from "./schema.js";
+import { seedRegions } from "./regions.js";
+import { diseases, symptoms, vaccines, type SPECIES } from "./schema.js";
 
 type Species = (typeof SPECIES)[number];
 
@@ -111,9 +111,11 @@ export const VACCINES: {
 ];
 
 /**
- * Insert any missing catalogue entries and the national root region. Existing
- * rows are left alone so edits made in production survive restarts; pass
- * `refresh` to overwrite them with the values above.
+ * Insert any missing catalogue entries and the national location hierarchy
+ * (India, its states and union territories, and their districts, blocks and
+ * villages — see `regions.ts`). Existing rows are left alone so edits made
+ * in production survive restarts; pass `refresh` to overwrite the catalogues
+ * with the values above.
  */
 export async function seedCatalog(db: Db, options: { refresh?: boolean } = {}) {
   for (const s of SYMPTOMS) {
@@ -128,6 +130,5 @@ export async function seedCatalog(db: Db, options: { refresh?: boolean } = {}) {
     const q = db.insert(vaccines).values(v);
     await (options.refresh ? q.onConflictDoUpdate({ target: vaccines.code, set: v }) : q.onConflictDoNothing());
   }
-  const [india] = await db.select({ id: regions.id }).from(regions).where(eq(regions.code, "IN"));
-  if (!india) await db.insert(regions).values({ name: "India", level: "country", code: "IN", lat: 22.35, lng: 78.67 });
+  await seedRegions(db);
 }
