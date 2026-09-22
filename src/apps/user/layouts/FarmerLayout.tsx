@@ -5,6 +5,8 @@ import AccountMenu from '../../../shared/components/AccountMenu';
 import { useUnreadCount } from '../../../api/queries';
 import { roleFor } from '../../../auth/portals';
 import { useSession } from '../../../auth/AuthContext';
+import LogoMark from '../../../shared/components/LogoMark';
+import BackToHome from '../../../shared/components/BackToHome';
 
 const navItems = [
   { to: '/user/farmer/home', icon: '🏠', label: 'Home', hindiLabel: 'होम' },
@@ -30,7 +32,7 @@ export default function FarmerLayout() {
             <span className="text-xl">☰</span>
           </button>
           <div className="flex items-center gap-2">
-            <span className="text-xl">🐄</span>
+            <LogoMark size="w-8 h-8" plate />
             <div>
               <p className="font-bold font-display text-sm leading-none">PawVita</p>
               <p className="text-white/60 text-xs leading-none">{roleShort} Portal</p>
@@ -96,9 +98,45 @@ export default function FarmerLayout() {
         </div>
       )}
 
-      <main className="flex-1 pb-20 lg:pb-0">
-        <Outlet />
-      </main>
+      <div className="flex flex-1">
+        {/* Desktop navigation. The drawer and bottom bar below are lg:hidden,
+            so without this the whole role is unnavigable on a laptop. */}
+        <aside className="hidden lg:flex flex-col w-56 bg-[#1B4332] sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto shrink-0">
+          <nav className="p-3 space-y-1">
+            {navItems.map(item => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`sidebar-link ${location.pathname === item.to ? 'active' : ''}`}
+              >
+                <span className="text-xl">{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+          <div className="mt-auto p-3 border-t border-white/10 space-y-1">
+            <Link to="/user/settings" className="sidebar-link">
+              <span className="text-xl" aria-hidden="true">⚙️</span>
+              <span>Settings</span>
+            </Link>
+            <Link to="/user/help-support" className="sidebar-link">
+              <span className="text-xl" aria-hidden="true">❓</span>
+              <span>Help &amp; Support</span>
+            </Link>
+            <button type="button" onClick={() => navigate('/logout')} className="sidebar-link w-full text-left">
+              <span className="text-xl" aria-hidden="true">🚪</span>
+              <span>Log out</span>
+            </button>
+          </div>
+        </aside>
+
+        <main className="flex-1 min-w-0 pb-20 lg:pb-0">
+          <div className="px-4 pt-3 sm:px-6">
+            <BackToHome />
+          </div>
+          <Outlet />
+        </main>
+      </div>
 
       {/* Bottom navigation for mobile */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex lg:hidden z-30">

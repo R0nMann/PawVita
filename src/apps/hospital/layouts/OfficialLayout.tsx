@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import Header from "../components/Header";
+import ConsoleHeader from "../../../shared/components/ConsoleHeader";
+import BackToHome from '../../../shared/components/BackToHome';
 import ChatBot from "../components/ChatBot";
 import OutbreakTicker from "../components/OutbreakTicker";
 import { useSession } from "../../../auth/AuthContext";
@@ -16,11 +17,10 @@ export default function OfficialLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const session = useSession();
-  const isAdmin = session.account.role === "admin";
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
       <OutbreakTicker />
-      <Header role="Official" />
+      <ConsoleHeader role="Official" nav={NAV} />
       <div className="flex flex-1">
         <aside className="hidden md:flex flex-col w-64 bg-[#1B4332] sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
           <div className="p-5">
@@ -46,11 +46,6 @@ export default function OfficialLayout() {
             <Link to="/hospital/notifications" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all">
               <span>🔔</span> Notifications
             </Link>
-            {isAdmin && (
-              <Link to="/hospital/admin/users" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all">
-                <span>👥</span> Admin Panel
-              </Link>
-            )}
             <Link to="/hospital/settings" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all">
               <span>⚙️</span> Settings
             </Link>
@@ -64,6 +59,7 @@ export default function OfficialLayout() {
           </div>
         </aside>
         <main className="flex-1 p-6 overflow-auto">
+          <BackToHome className="mb-3" />
           <Outlet />
         </main>
       </div>

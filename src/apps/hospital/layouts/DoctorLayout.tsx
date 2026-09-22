@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import Header from "../components/Header";
+import ConsoleHeader from "../../../shared/components/ConsoleHeader";
+import BackToHome from '../../../shared/components/BackToHome';
 import ChatBot from "../components/ChatBot";
 import { useSession } from "../../../auth/AuthContext";
 import { useCases } from "../../../api/queries";
@@ -22,7 +23,7 @@ export default function DoctorLayout() {
     (href === "/hospital/doctor/dashboard" && location.pathname.startsWith("/hospital/doctor/case"));
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
-      <Header role="Doctor" />
+      <ConsoleHeader role="Doctor" nav={NAV} />
       <div className="flex flex-1">
         <aside className="hidden md:flex flex-col w-60 bg-white border-r border-[#E8E5DF] sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
           <div className="p-4">
@@ -67,6 +68,7 @@ export default function DoctorLayout() {
           </div>
         </aside>
         <main className="flex-1 p-6 overflow-auto">
+          <BackToHome className="mb-3" />
           <Outlet />
         </main>
       </div>

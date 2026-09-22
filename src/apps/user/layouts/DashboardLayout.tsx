@@ -3,6 +3,8 @@ import { useState } from 'react';
 import ChatbotWidget from '../components/ChatbotWidget';
 import { useUnreadCount } from '../../../api/queries';
 import { useSession } from '../../../auth/AuthContext';
+import LogoMark from '../../../shared/components/LogoMark';
+import BackToHome from '../../../shared/components/BackToHome';
 
 interface NavItem { to: string; icon: string; label: string; }
 
@@ -49,7 +51,7 @@ export default function DashboardLayout({ role, navItems, title, subtitle }: Das
               <p className="text-white/50 text-xs mt-0.5">{subtitle}</p>
             </div>
           )}
-          {collapsed && <span className="text-2xl">🐄</span>}
+          {collapsed && <LogoMark size="w-9 h-9" plate />}
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map(item => {
@@ -109,9 +111,30 @@ export default function DashboardLayout({ role, navItems, title, subtitle }: Das
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pb-20 lg:pb-0">
+          <div className="px-6 pt-3">
+            <BackToHome />
+          </div>
           <Outlet />
         </main>
+
+        {/* The sidebar above is hidden below lg; this is the nav for those widths. */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex lg:hidden z-30">
+          {navItems.map(item => {
+            const active = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="flex-1 flex flex-col items-center py-2 gap-0.5 transition-colors"
+                style={active ? { color: accent } : { color: '#9ca3af' }}
+              >
+                <span className="text-xl">{item.icon}</span>
+                <span className="text-[11px] font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
       <ChatbotWidget />

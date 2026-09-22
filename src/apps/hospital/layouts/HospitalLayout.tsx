@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import Header from "../components/Header";
+import ConsoleHeader from "../../../shared/components/ConsoleHeader";
+import BackToHome from '../../../shared/components/BackToHome';
 import ChatBot from "../components/ChatBot";
 import { useSession } from "../../../auth/AuthContext";
 import { useAdmissions } from "../../../api/queries";
@@ -19,7 +20,7 @@ export default function HospitalLayout() {
   const admitted = useAdmissions({ active: true }, !!session.account.organizationId);
   return (
     <div className="min-h-screen bg-[#FAF9F6] flex flex-col">
-      <Header role="Hospital" />
+      <ConsoleHeader role="Hospital" nav={NAV} />
       <div className="flex flex-1">
         <aside className="hidden md:flex flex-col w-60 bg-white border-r border-[#E8E5DF] sticky top-[57px] h-[calc(100vh-57px)] overflow-y-auto">
           <div className="p-4">
@@ -66,6 +67,7 @@ export default function HospitalLayout() {
           </div>
         </aside>
         <main className="flex-1 p-6 overflow-auto">
+          <BackToHome className="mb-3" />
           <Outlet />
         </main>
       </div>
