@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, Link } from 'react-router';
 import { useCatalog, useLabRequest } from '../../../../api/queries';
 import { diseaseName, formatDateTime, LAB_PRIORITY_STYLE, LAB_STATUS_LABEL, SPECIES_LABEL } from '../../../../lib/format';
 import { LabWorkflow } from '../../../../shared/lab/LabActions';
@@ -46,6 +46,15 @@ export default function SampleDetail() {
                 ))}
               </div>
               {sample.notes && <p className="text-sm text-gray-600 mt-3">Vet's note: {sample.notes}</p>}
+              {sample.case && (
+                <Link
+                  to={`/user/lab/case/${sample.case.id}`}
+                  className="mt-4 flex items-center justify-between bg-[#FAF9F6] border border-gray-100 rounded-xl px-4 py-3 text-sm font-semibold text-[#1B4332] hover:bg-gray-50 transition-colors"
+                >
+                  View the full case {sample.case.caseNumber}
+                  <span aria-hidden="true">→</span>
+                </Link>
+              )}
             </div>
 
             <div className="bg-white rounded-2xl p-5 shadow-card border border-gray-100 mb-5">

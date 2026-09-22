@@ -473,11 +473,18 @@ export function TreatmentForm({ c }: { c: CaseDetail }) {
   );
 }
 
-/** Add a note — internal, or shared with the farmer as advice. */
-export function NoteForm({ c, placeholder }: { c: CaseDetail; placeholder?: string }) {
+/**
+ * Add a note — internal, or shared with the farmer as advice. Pass
+ * `allowShare={false}` where advising the farmer is not the author's job,
+ * as on the laboratory's view of a case.
+ */
+export function NoteForm({ c, placeholder, allowShare = true }: { c: CaseDetail; placeholder?: string; allowShare?: boolean }) {
   const [body, setBody] = useState("");
   const [share, setShare] = useState(false);
-  const add = useApiMutation(() => caseApi.addNote(c.id, { body: body.trim(), visibleToReporter: share }), INVALIDATE);
+  const add = useApiMutation(
+    () => caseApi.addNote(c.id, { body: body.trim(), visibleToReporter: allowShare && share }),
+    INVALIDATE,
+  );
   return (
     <form
       onSubmit={(e) => {
@@ -493,10 +500,14 @@ export function NoteForm({ c, placeholder }: { c: CaseDetail; placeholder?: stri
         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1B4332] resize-none"
       />
       <div className="flex items-center justify-between gap-3 mt-2">
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} />
-          Send to the farmer as advice
-        </label>
+        {allowShare ? (
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input type="checkbox" checked={share} onChange={(e) => setShare(e.target.checked)} />
+            Send to the farmer as advice
+          </label>
+        ) : (
+          <span />
+        )}
         <button disabled={add.isPending || !body.trim()} className="gradient-primary text-white text-sm font-semibold px-5 py-2 rounded-xl hover:opacity-90 transition-all disabled:opacity-50">
           {add.isPending ? "Adding…" : "+ Add Note"}
         </button>

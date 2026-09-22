@@ -49,8 +49,21 @@ export default function LabSample() {
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 mb-1">Animal / Case</p>
                   <p className="font-semibold text-gray-900">
-                    {sample.animal ? `${sample.animal.name ?? "Unnamed"} (${sample.animal.tagNumber ?? "no tag"})` : "Herd"} · {sample.case?.caseNumber}
+                    {sample.animal ? `${sample.animal.name ?? "Unnamed"} (${sample.animal.tagNumber ?? "no tag"})` : "Herd"}
+                    {sample.case && (
+                      <>
+                        {" · "}
+                        <Link to={`/hospital/lab/case/${sample.case.id}`} className="text-[#1B4332] underline hover:no-underline">
+                          {sample.case.caseNumber}
+                        </Link>
+                      </>
+                    )}
                   </p>
+                  {sample.case && (
+                    <Link to={`/hospital/lab/case/${sample.case.id}`} className="text-xs text-gray-500 hover:text-gray-700 mt-1 inline-block">
+                      View the full case →
+                    </Link>
+                  )}
                 </div>
                 <div className="bg-gray-50 rounded-xl p-4">
                   <p className="text-xs text-gray-500 mb-1">Collected</p>
