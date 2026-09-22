@@ -38,17 +38,20 @@ The local providers are refused when `NODE_ENV=production`.
 
 **Demo accounts** (from `--demo`). Password logins use `PawVita@2026`:
 
+Every demo account signs in with its email or staff ID plus the password above,
+and is flagged `two_factor_exempt` so a walkthrough needs no inbox.
+
 | Role | Sign in with |
 |---|---|
-| Farmer — Ramesh Kumar | phone `9876543210` + OTP |
-| Farmer — Sunita Devi | phone `9876543214` + OTP |
-| Field worker — Kiran Patel | phone `9876543216` + OTP |
-| Vet — Dr. Meera Patel (Anand) | `dr.meera` / password, or phone `9876543211` + OTP |
-| Vet — Dr. Anil Singh (Pune) | `dr.anil` / password |
-| Hospital ward staff | `vh-anand-01` / password |
-| Lab technician | `lab-anand-01` / password |
-| Official — Gujarat AHD | `ahd-gujarat` / password |
-| Administrator | `admin` / password |
+| Farmer — Ramesh Kumar | `ramesh.kumar@demo.pawvita.in` |
+| Farmer — Sunita Devi | `sunita.devi@demo.pawvita.in` |
+| Field worker — Kiran Patel | `kiran.patel@demo.pawvita.in` |
+| Vet — Dr. Meera Patel (Anand) | `dr.meera` |
+| Vet — Dr. Anil Singh (Pune) | `dr.anil` |
+| Hospital ward staff | `vh-anand-01` |
+| Lab technician | `lab-anand-01` |
+| Official — Gujarat AHD | `ahd-gujarat` |
+| Administrator — admin console | `admin` |
 
 ## Connecting Supabase
 
@@ -60,15 +63,26 @@ The local providers are refused when `NODE_ENV=production`.
    `service_role` names also work. New projects sign JWTs with asymmetric keys,
    which the API reads from the project's JWKS endpoint. Set `SUPABASE_JWT_SECRET`
    only if your project still uses the legacy HS256 secret.
-3. **Phone sign-in.** Under *Authentication → Sign In / Providers*, enable
-   **Phone** and configure an SMS provider (Twilio, MessageBird, Vonage or
-   Textlocal). Until you do, phone OTP will fail. For demos you can add *test
-   phone numbers* with fixed OTPs there.
-4. **Email sign-in.** Keep **Email** enabled. If "Confirm email" is on, staff
-   who register must confirm before signing in; `POST /auth/register/staff` then
+3. **Email sign-in.** Keep **Email** enabled under *Authentication → Sign In /
+   Providers*; it is the only sign-in method. If "Confirm email" is on, anyone
+   who registers must confirm before signing in, and `POST /auth/register`
    returns `emailConfirmationRequired: true`.
+4. **Sign-in codes.** `TWO_FACTOR_ENABLED` turns itself on as soon as the
+   Supabase auth provider is configured, and the second step then needs a way to
+   send mail. **Supabase’s built-in sender is not one**: it refuses any address
+   outside the project organisation with `email_address_invalid`, so every
+   account that is not `two_factor_exempt` is locked out. Pick one of:
+   - `TWO_FACTOR_ENABLED=false` — password only, no mail needed.
+   - **Supabase SMTP** (*Authentication → Emails → SMTP Settings*) pointed at
+     `smtp-relay.brevo.com:587`. Supabase keeps sending; the restriction lifts.
+     No hook, no public URL, no change to this repo.
+   - **The Send Email hook** below, for our own wording and sender. Supabase has
+     to reach `/api/v1/hooks/send-email`, so a local run needs a tunnel. Set
+     `EMAIL_HOOK_SECRET` and the Brevo values together: with the hook wired and
+     no transport, codes only reach the log, which production refuses to start on.
 5. `npm run db:migrate`, then `npm start`. The private storage bucket is created
-   on first boot.
+   on first boot. `DB_MIGRATE_ON_START` is off in production, so the migrate
+   step is not optional there.
 
 All tables live in a `pawvita` schema, not `public`. Supabase's Data API only
 exposes `public` (plus `graphql_public`), so the publishable key shipped in the
@@ -85,8 +99,8 @@ read or write.
 | `npm test` | Vitest — every test file boots the real app on an in-memory Postgres |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:generate` | After editing `src/db/schema.ts`, write a new SQL migration into `drizzle/` |
-| `npm run db:migrate` | Apply migrations and add any missing catalogue rows |
-| `npm run db:seed [-- --demo]` | Refresh the symptom / disease / vaccine catalogues (and load demo data) |
+| `npm run db:migrate` | Apply migrations and add any missing catalogue and region rows |
+| `npm run db:seed [-- --demo]` | Refresh the symptom / disease / vaccine catalogues and the region hierarchy (and load demo data) |
 
 ## Layout
 
@@ -97,7 +111,8 @@ src/
   config.ts           Environment, validated at startup
   providers.ts        Builds the database, auth, storage and AI dependencies
   auth/               Supabase Auth + local stand-in, JWT verification, middleware
-  db/                 Drizzle schema, client, catalogues, demo seed, CLI scripts
+  db/                 Drizzle schema, client, catalogues, region hierarchy, demo seed, CLI scripts
+  email/              Brevo transport and the sign-in code template
   lib/                Access rules, region hierarchy, validation, errors, upload sniffing
   services/           Case workflow, notifications, AI runner, reminders
   routes/             One router per resource
@@ -139,20 +154,31 @@ Express passes sign-in requests through to Supabase Auth and verifies the
 resulting JWT on every request. A frontend may also talk to Supabase Auth
 directly: the API accepts any valid access token for the project.
 
-**Farmers and field staff: phone + OTP**
-1. `POST /auth/otp/request {phone}`. Accepts `9876543210`, `+91 98765 43210`, etc.
-2. `POST /auth/otp/verify {phone, otp}` returns `{session, user, registrationRequired}`.
-3. If `registrationRequired`, call `POST /auth/register/phone {fullName, role?, regionId, preferredLanguage}`
-   with the new access token. Farmers are active immediately. Every other role
-   is **pending** until an admin approves it.
+Everyone signs in the same way: an email address and a password, then a
+six-digit code emailed through Brevo. There is no SMS path.
 
-If a field worker already registered this farmer, step 2 links the new login to
-that record automatically.
+**Registering**
+- `POST /auth/register {email, password, fullName, role?, username?, phone?, organizationCode?, regionId?}`
+  is the one self-service sign-up, for every role a person may pick themselves.
+  Farmers are active immediately; every other role is **pending** until an
+  administrator approves it. `phone` is contact detail, not a credential.
+- A farmer a field worker registered earlier has a profile but no login.
+  Registering with that same email **claims the existing record** rather than
+  creating a second one, so their herd and case history come with them.
 
-**Institutions: email or staff ID + password**
-- `POST /auth/register/staff {email, password, fullName, role, username?, organizationCode?, regionId?}` creates a pending account.
+**Signing in**
 - `POST /auth/login {identifier, password}` accepts either the email or the
-  `username`, which is the "Institution ID" field on the sign-in screen.
+  `username`, which is the "Staff ID" field on the sign-in screen.
+- With `TWO_FACTOR_ENABLED` (on by default under the Supabase auth provider) a
+  correct password does **not** return a session. The reply is
+  `{twoFactorRequired: true, email}` — the address masked — and a six-digit code
+  goes to the inbox. Finish with `POST /auth/login/verify {identifier, otp}`,
+  which returns the usual `{session, user, registrationRequired}`.
+- Accounts flagged `two_factor_exempt` skip the second step; the demo seed sets
+  it so a walkthrough needs no inbox.
+
+An account with no email address cannot sign in, so `POST /herds` requires one
+when a field worker registers a farmer inline.
 
 **Session:** send `Authorization: Bearer <accessToken>`. Renew with
 `POST /auth/refresh {refreshToken}`, which rotates the refresh token, and end
@@ -161,6 +187,28 @@ with `POST /auth/logout`.
 A token without a registered account gets `403 profile_required`, a pending
 account gets `403 account_pending`, and a suspended one gets
 `403 account_suspended`. `GET /me` works in all three states.
+
+### Sending sign-in codes through Brevo
+
+Supabase Auth owns every code — it generates, stores, expires and verifies it.
+All this API does is deliver it, so the wording and the sender are ours rather
+than Supabase's built-in SMTP.
+
+1. **Brevo** → SMTP & API → API keys: create a key, and verify the sender
+   address. Set `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and `BREVO_SENDER_NAME`.
+2. **Supabase** → Authentication → Hooks → Send Email Hook: enable it, point it
+   at `https://<api-host>/api/v1/hooks/send-email` and copy the generated secret
+   into `EMAIL_HOOK_SECRET`. The host must be reachable from Supabase.
+3. Leave `TWO_FACTOR_ENABLED` unset — it defaults on with the Supabase provider.
+
+The message is built in `src/email/templates.ts` and posted to Brevo's
+`/v3/smtp/email` by `src/email/index.ts`. It carries a code and no link: a code
+typed back into a page the reader already has open is harder to phish than a
+button that signs them in.
+
+Without `BREVO_API_KEY` the transport writes each message to the log instead,
+the way the local auth provider prints OTPs — fine for development, and refused
+outright when `NODE_ENV=production` and two-factor is on.
 
 ## Case workflow
 
@@ -267,15 +315,15 @@ Base path `/api/v1`. JSON in and out. Errors always look like
 | `GET /public/alerts` | Open cases per district and disease, last 14 days (the ticker) |
 | `GET /public/trends?months=7` | Cases per month for the top three diseases plus "other" (the landing chart) |
 | `GET /public/advisories?regionId=&lang=` | Nationwide and regional advisories |
-| `GET /health` · `GET /health/ready` | Liveness · database readiness |
+| `POST /hooks/send-email` | Supabase's Send Email auth hook: takes the code Supabase generated and sends it through Brevo. Signed with `EMAIL_HOOK_SECRET` (Standard Webhooks); called by Supabase, never by a client |
+| `GET /health` · `GET /health/ready` | Liveness · database readiness. Served at the root (`http://localhost:4000/health`), not under `/api/v1` |
 
 ### Auth and account
 
 | | |
 |---|---|
-| `POST /auth/otp/request` · `POST /auth/otp/verify` | Phone sign-in |
-| `POST /auth/login` | Email or username + password |
-| `POST /auth/register/phone` · `POST /auth/register/staff` | Registration (see above) |
+| `POST /auth/login` · `POST /auth/login/verify` | Email or staff ID + password, then the emailed code |
+| `POST /auth/register` | Self-service sign-up for every role (see above) |
 | `POST /auth/refresh` · `POST /auth/logout` | Session |
 | `GET /me` · `PATCH /me` | Own account; farmers may change village and language |
 
@@ -368,5 +416,5 @@ The UI's portal roles map onto the API roles as `doctor` → `vet`,
 
 - **AI Intelligence Layer.** Vision, clinical triage and outbreak ML (by design; the hook is in place).
 - **SMS / push delivery** of notifications and advisories. Only the in-app channel exists; the delivery hook is in `services/notifications.ts`.
-- **A full village directory.** Load LGD data through `/admin/regions/import`; the demo seed only covers a few districts.
+- **A full village directory.** `src/db/regions.ts` seeds all 28 states and 8 union territories with a couple of districts each, a few blocks per district and one village per block — enough to demo routing anywhere in India, but not the real thing. Load LGD data through `/admin/regions/import`, which matches on `code` and refreshes those rows in place.
 - **Catalogue editing in the API.** Change `src/db/catalog.ts` and run `npm run db:seed`.
