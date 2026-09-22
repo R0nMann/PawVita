@@ -1,7 +1,6 @@
 import type { Request, RequestHandler } from "express";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import type { Config } from "../config.js";
-import { normalizePhone } from "./validation.js";
 
 /**
  * Rate limits keyed by who is asking, not only where from. Farmers in a
@@ -54,11 +53,6 @@ function limiter(
 const MINUTE = 60 * 1000;
 
 export function rateLimits(config: Config) {
-  const phone = (req: Request) => {
-    const raw = (req.body as { phone?: unknown } | undefined)?.phone;
-    const normalized = typeof raw === "string" ? normalizePhone(raw) : null;
-    return normalized ? `phone:${normalized}` : undefined;
-  };
   const identifier = (req: Request) => {
     const raw = (req.body as { identifier?: unknown } | undefined)?.identifier;
     return typeof raw === "string" ? `id:${raw.trim().toLowerCase()}` : undefined;
@@ -69,12 +63,12 @@ export function rateLimits(config: Config) {
       const sub = tokenSubject(req);
       return sub ? `user:${sub}` : undefined;
     }),
-    /** SMS costs money: a few per phone, and a ceiling per IP so one address cannot spray many numbers. */
-    otpSendPerPhone: limiter(config, "otp-send", 10 * MINUTE, 5, phone),
-    otpSendPerIp: limiter(config, "otp-send-ip", 10 * MINUTE, 60),
-    otpVerifyPerPhone: limiter(config, "otp-verify", 10 * MINUTE, 10, phone),
     loginPerIdentifier: limiter(config, "login", 10 * MINUTE, 10, identifier),
     loginPerIp: limiter(config, "login-ip", 10 * MINUTE, 200),
+    /** The emailed second factor is only 6 digits: cap guesses per account. */
+    twoFactorVerifyPerIdentifier: limiter(config, "login-2fa", 10 * MINUTE, 10, identifier),
+    /** Supabase calls the send-email hook once per auth email; generous, but not unbounded. */
+    emailHookPerIp: limiter(config, "email-hook", MINUTE, 120),
     registerPerIp: limiter(config, "register", 10 * MINUTE, 20),
     refreshPerIp: limiter(config, "refresh", 10 * MINUTE, 300),
   };

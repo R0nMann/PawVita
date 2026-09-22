@@ -69,6 +69,24 @@ const EnvSchema = z.object({
   /** When set, the local provider accepts this OTP for every phone number (demos, tests). */
   LOCAL_AUTH_FIXED_OTP: z.string().regex(/^\d{6}$/).optional(),
 
+  // Two-factor sign-in + transactional email -----------------------------------
+  /**
+   * Staff sign-in asks for an emailed code after the password. Supabase Auth
+   * generates and verifies that code, so this defaults on wherever the Supabase
+   * auth provider is configured. Accounts flagged `two_factor_exempt` skip it.
+   */
+  TWO_FACTOR_ENABLED: bool.optional(),
+  /**
+   * Shared secret of the Supabase "Send Email" auth hook, as Supabase shows it
+   * (`v1,whsec_…`). Required to accept POST /hooks/send-email.
+   */
+  EMAIL_HOOK_SECRET: z.string().optional(),
+  /** Brevo transactional API key (Brevo → SMTP & API → API keys). */
+  BREVO_API_KEY: z.string().optional(),
+  /** Must be a sender verified in Brevo, or delivery is rejected. */
+  BREVO_SENDER_EMAIL: z.string().email().optional(),
+  BREVO_SENDER_NAME: z.string().default("PawVita"),
+
   // Features -----------------------------------------------------------------
   MAX_UPLOAD_MB: z.coerce.number().positive().max(50).default(15),
   /** Background jobs (vaccination and visit reminders). Disable on all but one instance if needed. */
@@ -109,6 +127,11 @@ export interface Config {
     fixedOtp?: string;
   };
   storage: { provider: "supabase" } | { provider: "local"; dir: string };
+  /** Emailed second factor on staff sign-in. */
+  twoFactor: { enabled: boolean };
+  email:
+    | { provider: "brevo"; apiKey: string; senderEmail: string; senderName: string; hookSecret?: string }
+    | { provider: "log"; hookSecret?: string };
   maxUploadBytes: number;
   jobs: { enabled: boolean; intervalMinutes: number; reminderLookaheadDays: number };
   aiServiceUrl?: string;
@@ -148,7 +171,17 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
       "SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY (or SUPABASE_ANON_KEY) and SUPABASE_SECRET_KEY (or SUPABASE_SERVICE_ROLE_KEY) are required for the Supabase providers.",
     );
   }
+  const twoFactorEnabled = e.TWO_FACTOR_ENABLED ?? authProvider === "supabase";
   if (isProduction) {
+    // Setting the hook secret takes delivery away from Supabase's own SMTP, so
+    // from then on a transport of our own is required — otherwise Supabase would
+    // hand us every code and we would only write it to the log. With no hook
+    // secret Supabase sends the mail itself and nothing here is needed.
+    if (e.EMAIL_HOOK_SECRET && !(e.BREVO_API_KEY && e.BREVO_SENDER_EMAIL)) {
+      problems.push(
+        "BREVO_API_KEY and BREVO_SENDER_EMAIL are required once EMAIL_HOOK_SECRET is set, or sign-in codes would only be logged.",
+      );
+    }
     if (!e.DATABASE_URL) problems.push("DATABASE_URL is required in production.");
     if (authProvider !== "supabase") problems.push("AUTH_PROVIDER=local is not allowed in production.");
     if (storageProvider !== "supabase") problems.push("STORAGE_PROVIDER=local is not allowed in production.");
@@ -183,6 +216,17 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): Config {
       storageProvider === "supabase"
         ? { provider: "supabase" }
         : { provider: "local", dir: path.resolve(e.LOCAL_STORAGE_DIR) },
+    twoFactor: { enabled: twoFactorEnabled },
+    email:
+      e.BREVO_API_KEY && e.BREVO_SENDER_EMAIL
+        ? {
+            provider: "brevo",
+            apiKey: e.BREVO_API_KEY,
+            senderEmail: e.BREVO_SENDER_EMAIL,
+            senderName: e.BREVO_SENDER_NAME,
+            hookSecret: e.EMAIL_HOOK_SECRET,
+          }
+        : { provider: "log", hookSecret: e.EMAIL_HOOK_SECRET },
     maxUploadBytes: Math.round(e.MAX_UPLOAD_MB * 1024 * 1024),
     jobs: {
       enabled: e.JOBS_ENABLED && !isTest,

@@ -20,6 +20,8 @@ export interface CurrentUser {
   organizationId: string | null;
   regionId: string | null;
   preferredLanguage: string;
+  /** Sign-in skips the emailed second factor for this account. */
+  twoFactorExempt: boolean;
   /** Home village (farmers) or area of responsibility (staff). */
   region: RegionRef | null;
 }
@@ -74,6 +76,7 @@ export async function loadUserByAuthId(db: Db, authUserId: string): Promise<Curr
     organizationId: u.organizationId,
     regionId: u.regionId,
     preferredLanguage: u.preferredLanguage,
+    twoFactorExempt: u.twoFactorExempt,
     region: row.region?.id ? (row.region as RegionRef) : null,
   };
 }

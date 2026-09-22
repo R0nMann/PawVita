@@ -261,6 +261,12 @@ export const users = app
       /** Home village for farmers; area of responsibility for staff. */
       regionId: uuid().references(() => regions.id),
       preferredLanguage: text().notNull().default("en"),
+      /**
+       * Skip the emailed second factor on sign-in. Set on the demo accounts so
+       * a walkthrough needs no inbox; otherwise reserved for accounts that
+       * genuinely cannot receive mail.
+       */
+      twoFactorExempt: boolean().notNull().default(false),
       createdById: uuid().references((): AnyPgColumn => users.id),
       approvedById: uuid().references((): AnyPgColumn => users.id),
       approvedAt: timestamp({ withTimezone: true }),

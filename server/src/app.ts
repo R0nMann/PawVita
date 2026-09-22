@@ -15,6 +15,7 @@ import { authRouter, meRouter } from "./routes/auth.js";
 import { casesRouter } from "./routes/cases.js";
 import { directoryRouter } from "./routes/directory.js";
 import { herdsRouter } from "./routes/herds.js";
+import { hooksRouter, type RawBodyRequest } from "./routes/hooks.js";
 import { labRouter } from "./routes/lab.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { publicRouter } from "./routes/public.js";
@@ -46,7 +47,15 @@ export function createApp(deps: Deps): Express {
       maxAge: 600,
     }),
   );
-  app.use(express.json({ limit: "1mb" }));
+  app.use(
+    express.json({
+      limit: "1mb",
+      // The Supabase auth hook signs the exact bytes it sent, so keep them.
+      verify: (req, _res, buf) => {
+        if (req.url?.startsWith(`${API_PREFIX}/hooks/`)) (req as RawBodyRequest).rawBody = buf;
+      },
+    }),
+  );
 
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });
@@ -63,6 +72,8 @@ export function createApp(deps: Deps): Express {
   const api = Router();
   // Sign-in has its own per-phone / per-identifier limits (routes/auth.ts).
   api.use("/auth", authRouter(deps));
+  // Called by Supabase, not by a signed-in person: no bearer token, own limit.
+  api.use("/hooks", rateLimits(config).emailHookPerIp, hooksRouter(deps));
   api.use(rateLimits(config).api);
 
   // Open to anyone: reference data and landing-page aggregates.
